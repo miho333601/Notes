@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (詳情頁面版)</title>
+    <title>公司備忘錄系統 (可編輯版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -14,9 +14,9 @@
         .badge-admin { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
         .badge-operator { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
         /* 卡片狀態顏色 */
-        .status-border-pending { border-left: 4px solid #f97316; } /* 橘色 */
-        .status-border-processing { border-left: 4px solid #3b82f6; } /* 藍色 */
-        .status-border-completed { border-left: 4px solid #22c55e; } /* 綠色 */
+        .status-border-pending { border-left: 5px solid #f97316; } 
+        .status-border-processing { border-left: 5px solid #3b82f6; } 
+        .status-border-completed { border-left: 5px solid #22c55e; } 
     </style>
 </head>
 <body>
@@ -104,7 +104,7 @@
                             <p class="text-sm text-gray-500 font-mono" id="detailClientCode">代號</p>
                         </div>
                     </div>
-                    <button onclick="window.openMemoModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition shadow-sm">
+                    <button onclick="window.openMemoModal(null, true)" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition shadow-sm">
                         <i class="fas fa-plus mr-2"></i> 新增紀錄
                     </button>
                 </div>
@@ -139,14 +139,39 @@
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-screen">
             <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3"><p class="text-2xl font-bold">新增備忘錄</p><div class="cursor-pointer" onclick="window.closeModal('memoModal')"><i class="fas fa-times text-gray-500"></i></div></div>
+                <div class="flex justify-between items-center pb-3">
+                    <p class="text-2xl font-bold" id="memoModalTitle">新增備忘錄</p>
+                    <div class="cursor-pointer z-50" onclick="window.closeModal('memoModal')"><i class="fas fa-times text-gray-500"></i></div>
+                </div>
                 <form id="memoForm" onsubmit="event.preventDefault(); window.saveMemo()">
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label><select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()"></select></div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label>
+                        <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()"></select>
+                    </div>
                     <div id="selectedClientDisplay" class="mb-4 p-3 bg-blue-50 text-blue-800 rounded border border-blue-100 hidden">已選擇: <span id="displayClientCode"></span> - <span id="displayClientName"></span></div>
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label><textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea></div>
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label><select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select></div>
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">客戶回覆</label><textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-16" placeholder="記錄客戶的回覆內容..."></textarea></div>
-                    <div class="flex justify-end pt-2"><button type="submit" id="saveMemoBtn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition">保存至雲端</button></div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label>
+                        <textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label>
+                        <select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="pending">○ 尚未完成</option>
+                            <option value="processing">⟳ 處理中</option>
+                            <option value="completed">✓ 已完成</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4 bg-gray-50 p-3 rounded border border-gray-200">
+                        <label class="block text-gray-700 text-sm font-bold mb-2"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆 (選填)</label>
+                        <textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-20" placeholder="記錄客戶的回覆內容..."></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" id="saveMemoBtn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition">保存</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -187,7 +212,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, setDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // [新增] updateDoc 引入
+        import { getFirestore, collection, addDoc, setDoc, updateDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -211,6 +237,9 @@
         let unsubscribeMemos = null;
         let currentUserEmail = "";
         let currentUserRole = "operator";
+        
+        // [新增] 用來記錄目前正在編輯的備忘錄 ID，如果是 null 代表是「新增模式」
+        let editingMemoId = null;
 
         // --- 登入邏輯 ---
         onAuthStateChanged(auth, async (user) => {
@@ -293,16 +322,14 @@
             window.renderDashboard();
             window.renderClientManager();
             window.renderClientSelect();
-            // 如果目前正在看詳情頁，也要即時更新
             const detailView = document.getElementById('clientDetailView');
             if (!detailView.classList.contains('hidden')) {
-                // 找到目前正在看的客戶代號
                 const currentCode = document.getElementById('detailClientCode').innerText;
                 window.openClientDetail(currentCode);
             }
         }
 
-        // --- 核心渲染邏輯 ---
+        // --- Dashboard 渲染 ---
         window.renderDashboard = function() {
             const tbody = document.getElementById('clientTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
@@ -339,21 +366,18 @@
             if (tbody.innerHTML === '') tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">無符合資料</td></tr>';
         }
 
-        // --- [NEW] 客戶詳情頁面邏輯 ---
+        // --- Client Detail View ---
         window.openClientDetail = function(code) {
             const client = clientsData.find(c => c.code === code);
             if (!client) return;
 
-            // 1. 設定標題
             document.getElementById('detailClientName').innerText = client.name;
             document.getElementById('detailClientCode').innerText = client.code;
 
-            // 2. 切換畫面
             document.getElementById('dashboardView').classList.add('hidden');
             document.getElementById('clientDetailView').classList.remove('hidden');
             document.getElementById('clientManagerView').classList.add('hidden');
 
-            // 3. 渲染備忘錄卡片
             const container = document.getElementById('memoListContainer');
             container.innerHTML = '';
             
@@ -365,14 +389,12 @@
             }
 
             clientMemos.forEach(memo => {
-                // 時間格式化
                 let timeStr = "";
                 if (memo.timestamp) {
                     const date = memo.timestamp.toDate ? memo.timestamp.toDate() : new Date(memo.timestamp);
                     timeStr = date.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
                 }
 
-                // 狀態樣式
                 let statusText = "", statusClass = "", icon = "";
                 switch(memo.status) {
                     case 'completed': statusText = "已完成"; statusClass = "status-border-completed"; icon="fa-check text-green-500"; break;
@@ -380,18 +402,18 @@
                     default: statusText = "尚未完成"; statusClass = "status-border-pending"; icon="fa-circle text-orange-500"; break;
                 }
 
-                // 回覆區塊
                 const feedbackHtml = memo.feedback 
-                    ? `<div class="mt-3 bg-gray-50 p-3 rounded text-sm border border-gray-100">
-                         <div class="font-bold text-gray-600 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div>
-                         <div class="text-gray-800">${memo.feedback}</div>
-                       </div>` 
+                    ? `<div class="mt-3 bg-gray-50 p-3 rounded text-sm border border-gray-100"><div class="font-bold text-gray-600 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div><div class="text-gray-800">${memo.feedback}</div></div>` 
                     : `<div class="mt-3 text-xs text-gray-400 italic">尚無回覆</div>`;
 
                 const card = document.createElement('div');
-                card.className = `bg-white p-5 rounded-lg shadow-sm border border-gray-100 ${statusClass} hover:shadow-md transition`;
+                card.className = `bg-white p-5 rounded-lg shadow-sm border border-gray-100 ${statusClass} hover:shadow-md transition relative`;
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
+                    <button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition p-2 bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center">
+                        <i class="fas fa-pen text-sm"></i>
+                    </button>
+
+                    <div class="flex justify-between items-start mb-2 pr-10">
                         <span class="text-xs text-gray-400 font-mono">${timeStr}</span>
                         <div class="flex items-center gap-1 text-sm font-bold text-gray-700">
                             <i class="fas ${icon} text-xs"></i> ${statusText}
@@ -409,14 +431,70 @@
             document.getElementById('dashboardView').classList.remove('hidden');
         }
 
-        // --- 其他視圖切換 ---
+        // --- [修改] Modal 開啟與資料填充 ---
+        
+        // 開啟新增/編輯視窗
+        window.openMemoModal = function(memoData = null, lockCurrentClient = false) {
+            const modal = document.getElementById('memoModal');
+            const form = document.getElementById('memoForm');
+            const clientSelect = document.getElementById('memoClientSelect');
+            const btn = document.getElementById('saveMemoBtn');
+            const title = document.getElementById('memoModalTitle');
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            
+            if (memoData) {
+                // --- 編輯模式 ---
+                editingMemoId = memoData.id; // 記錄 ID
+                title.innerText = "編輯備忘錄";
+                btn.innerText = "更新資料";
+                btn.className = "w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition";
+                
+                // 填入資料
+                clientSelect.value = memoData.clientCode;
+                document.getElementById('memoContent').value = memoData.content;
+                document.getElementById('memoStatus').value = memoData.status;
+                document.getElementById('memoFeedback').value = memoData.feedback || '';
+                
+                // 觸發顯示客戶名稱
+                window.updateMemoClientDisplay();
+                clientSelect.disabled = true; // 編輯時禁止換客戶
+
+            } else {
+                // --- 新增模式 ---
+                editingMemoId = null;
+                title.innerText = "新增備忘錄";
+                btn.innerText = "保存至雲端";
+                btn.className = "w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition";
+                
+                form.reset();
+                clientSelect.disabled = false;
+                document.getElementById('selectedClientDisplay').classList.add('hidden');
+
+                // 如果是從詳情頁點選「新增」，鎖定客戶
+                if (lockCurrentClient) {
+                    const currentCode = document.getElementById('detailClientCode').innerText;
+                    clientSelect.value = currentCode;
+                    window.updateMemoClientDisplay();
+                    clientSelect.disabled = true;
+                }
+            }
+        }
+
+        // 供按鈕呼叫的編輯函式 (透過 ID 找資料)
+        window.editMemo = function(memoId) {
+            const memo = memosData.find(m => m.id === memoId);
+            if (memo) {
+                window.openMemoModal(memo);
+            }
+        }
+
         window.toggleView = (view) => {
             document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
             document.getElementById('clientManagerView').classList.toggle('hidden', view !== 'clientManager');
-            document.getElementById('clientDetailView').classList.add('hidden'); // 切換其他視圖時關閉詳情
+            document.getElementById('clientDetailView').classList.add('hidden');
         };
 
-        // --- 下拉選單連動 (新增備忘錄時) ---
         window.updateMemoClientDisplay = () => {
             const select = document.getElementById('memoClientSelect');
             const client = clientsData.find(c => c.code === select.value);
@@ -427,12 +505,48 @@
             }
         };
 
-        // --- Modal 控制 ---
-        window.openMemoModal = () => document.getElementById('memoModal').classList.remove('opacity-0', 'pointer-events-none');
         window.openClientModal = () => document.getElementById('clientModal').classList.remove('opacity-0', 'pointer-events-none');
         window.closeModal = (id) => document.getElementById(id).classList.add('opacity-0', 'pointer-events-none');
 
-        // --- 寫入邏輯 (保持不變) ---
+        // --- [修改] 存檔邏輯 (支援 Update) ---
+        window.saveMemo = async function() {
+            const clientCode = document.getElementById('memoClientSelect').value;
+            const content = document.getElementById('memoContent').value;
+            const status = document.getElementById('memoStatus').value;
+            const feedback = document.getElementById('memoFeedback').value;
+            if(!clientCode) { alert('請選擇客戶'); return; }
+            
+            const btn = document.getElementById('saveMemoBtn');
+            btn.disabled = true;
+            btn.innerText = "處理中...";
+
+            try {
+                if (editingMemoId) {
+                    // --- 更新模式 ---
+                    const memoRef = doc(db, "memos", editingMemoId);
+                    await updateDoc(memoRef, {
+                        content: content,
+                        status: status,
+                        feedback: feedback,
+                        // update 不更新 timestamp，若要記錄最後修改時間可另開欄位
+                    });
+                } else {
+                    // --- 新增模式 ---
+                    await addDoc(collection(db, "memos"), { 
+                        clientCode, content, status, feedback, 
+                        timestamp: serverTimestamp() 
+                    }); 
+                }
+                
+                window.closeModal('memoModal'); 
+            } catch(e) {
+                console.error(e);
+                alert("保存失敗");
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
         window.saveClient = async function() {
             const code = document.getElementById('newClientCode').value.trim();
             const name = document.getElementById('newClientName').value.trim();
@@ -440,19 +554,8 @@
             try { await setDoc(doc(db, "clients", code), { code, name, createdAt: serverTimestamp(), latestMemoDate: new Date('2000-01-01') }); window.closeModal('clientModal'); document.getElementById('newClientCode').value=''; document.getElementById('newClientName').value=''; } catch(e){alert("新增失敗");}
         }
         window.deleteClient = async function(id) { if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");} }
-        window.saveMemo = async function() {
-            const clientCode = document.getElementById('memoClientSelect').value;
-            const content = document.getElementById('memoContent').value;
-            const status = document.getElementById('memoStatus').value;
-            const feedback = document.getElementById('memoFeedback').value;
-            if(!clientCode) { alert('請選擇客戶'); return; }
-            try { 
-                await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() }); 
-                window.closeModal('memoModal'); document.getElementById('memoForm').reset(); document.getElementById('selectedClientDisplay').classList.add('hidden'); 
-            } catch(e){alert("保存失敗");}
-        }
-        
-        // --- 員工管理 (保持不變) ---
+
+        // --- 員工管理 ---
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
