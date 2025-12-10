@@ -3,35 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (雲端同步版)</title>
+    <title>公司備忘錄系統 (權限分級版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
-        /* 登入背景 */
         .login-bg { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
-        /* 載入動畫 */
-        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* 角色標籤樣式 */
+        .badge-admin { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-operator { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
     </style>
 </head>
 <body>
 
     <div id="loginScreen" class="fixed inset-0 z-[100] login-bg flex items-center justify-center">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-96 text-center">
-            <div class="mb-6">
-                <i class="fas fa-shield-alt text-blue-600 text-5xl"></i>
-            </div>
+            <div class="mb-6"><i class="fas fa-user-shield text-blue-600 text-5xl"></i></div>
             <h2 class="text-2xl font-bold text-gray-800 mb-2">公司備忘錄系統</h2>
             <p class="text-gray-500 mb-8 text-sm">請使用公司授權的 Google 帳號登入</p>
-            
-            <button id="googleLoginBtn" onclick="window.loginWithGoogle()" class="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-bold py-3 px-4 rounded flex items-center justify-center transition shadow-sm group">
+            <button onclick="window.loginWithGoogle()" class="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-bold py-3 px-4 rounded flex items-center justify-center transition shadow-sm group">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-3">
                 <span id="loginBtnText">使用 Google 帳號登入</span>
             </button>
-            
             <p id="loginMsg" class="mt-4 text-red-500 text-sm font-bold min-h-[20px]"></p>
         </div>
     </div>
@@ -39,15 +34,21 @@
     <div id="mainApp" class="hidden">
         <nav class="bg-white shadow-sm p-4 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <h1 class="text-xl font-bold text-gray-800">
-                    <i class="fas fa-cloud text-blue-500 mr-2"></i>備忘錄系統
-                </h1>
+                <h1 class="text-xl font-bold text-gray-800"><i class="fas fa-cloud text-blue-500 mr-2"></i>備忘錄系統</h1>
                 <div class="text-gray-500 text-sm flex items-center gap-3">
                     <div class="flex items-center gap-2">
                         <img id="userAvatar" src="" class="w-8 h-8 rounded-full border border-gray-200">
-                        <span id="userName" class="font-medium text-gray-700">User</span>
+                        <div class="flex flex-col items-start leading-tight">
+                            <span id="userName" class="font-medium text-gray-700">User</span>
+                            <span id="userRoleBadge" class="text-[10px] px-1 rounded bg-gray-100 text-gray-500">載入中</span>
+                        </div>
                     </div>
-                    <button onclick="window.logout()" class="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded">登出</button>
+                    
+                    <button id="adminBtn" onclick="window.openEmployeeModal()" class="hidden bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-800 border border-red-200 px-3 py-1 rounded transition text-xs font-bold items-center">
+                        <i class="fas fa-users-cog mr-1"></i> 員工管理
+                    </button>
+                    
+                    <button onclick="window.logout()" class="text-gray-500 hover:text-gray-700 text-xs border border-gray-200 px-2 py-1 rounded">登出</button>
                 </div>
             </div>
         </nav>
@@ -85,9 +86,7 @@
                             <th class="p-4 font-medium text-right">操作</th>
                         </tr>
                     </thead>
-                    <tbody id="clientTableBody">
-                        <tr><td colspan="4" class="p-8 text-center text-gray-400">正在同步雲端資料...</td></tr>
-                    </tbody>
+                    <tbody id="clientTableBody"><tr><td colspan="4" class="p-8 text-center text-gray-400">正在同步雲端資料...</td></tr></tbody>
                 </table>
             </div>
 
@@ -117,18 +116,10 @@
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-screen">
             <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3">
-                    <p class="text-2xl font-bold">新增備忘錄</p>
-                    <div class="cursor-pointer z-50" onclick="window.closeModal('memoModal')"><i class="fas fa-times text-gray-500"></i></div>
-                </div>
+                <div class="flex justify-between items-center pb-3"><p class="text-2xl font-bold">新增備忘錄</p><div class="cursor-pointer" onclick="window.closeModal('memoModal')"><i class="fas fa-times text-gray-500"></i></div></div>
                 <form id="memoForm" onsubmit="event.preventDefault(); window.saveMemo()">
-                    <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label>
-                        <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()"></select>
-                    </div>
-                    <div id="selectedClientDisplay" class="mb-4 p-3 bg-blue-50 text-blue-800 rounded border border-blue-100 hidden">
-                        已選擇: <span id="displayClientCode"></span> - <span id="displayClientName"></span>
-                    </div>
+                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label><select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()"></select></div>
+                    <div id="selectedClientDisplay" class="mb-4 p-3 bg-blue-50 text-blue-800 rounded border border-blue-100 hidden">已選擇: <span id="displayClientCode"></span> - <span id="displayClientName"></span></div>
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label><textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea></div>
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label><select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select></div>
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">客戶回覆</label><textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-16" placeholder="記錄客戶的回覆內容..."></textarea></div>
@@ -152,9 +143,49 @@
         </div>
     </div>
 
+    <div id="employeeModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-2xl mx-auto rounded shadow-lg z-50">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3 border-b mb-4">
+                    <p class="text-xl font-bold text-gray-800"><i class="fas fa-user-shield mr-2"></i>員工權限管理</p>
+                    <div class="cursor-pointer" onclick="window.closeModal('employeeModal')"><i class="fas fa-times text-gray-500"></i></div>
+                </div>
+                
+                <form onsubmit="event.preventDefault(); window.saveEmployee()" class="bg-red-50 p-4 rounded mb-6 border border-red-100">
+                    <h4 class="text-sm font-bold text-red-800 mb-3"><i class="fas fa-plus-circle mr-1"></i> 新增/修改 員工白名單</h4>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input id="empEmail" type="email" placeholder="Google Email" class="flex-[2] border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-200 outline-none" required>
+                        <input id="empName" type="text" placeholder="姓名/備註" class="flex-1 border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-red-200 outline-none" required>
+                        <select id="empRole" class="flex-1 border rounded px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-red-200 outline-none">
+                            <option value="operator">操作員</option>
+                            <option value="admin">管理員</option>
+                        </select>
+                        <button type="submit" id="saveEmpBtn" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 whitespace-nowrap font-bold"><i class="fas fa-save mr-1"></i> 儲存</button>
+                    </div>
+                    <p class="text-xs text-red-400 mt-2">* 管理員可新增/刪除員工；操作員僅能操作備忘錄。</p>
+                </form>
+
+                <div class="max-h-64 overflow-y-auto border border-gray-100 rounded">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 text-gray-600 sticky top-0">
+                            <tr>
+                                <th class="p-3">姓名</th>
+                                <th class="p-3">Email</th>
+                                <th class="p-3">職位</th>
+                                <th class="p-3 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, setDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -176,9 +207,10 @@
         let memosData = [];
         let unsubscribeClients = null;
         let unsubscribeMemos = null;
+        let currentUserEmail = "";
+        let currentUserRole = "operator"; // 預設操作員
 
-        // --- 登入/權限驗證邏輯 ---
-
+        // --- 登入邏輯 ---
         onAuthStateChanged(auth, async (user) => {
             const loginScreen = document.getElementById('loginScreen');
             const mainApp = document.getElementById('mainApp');
@@ -186,27 +218,41 @@
             const loginBtnText = document.getElementById('loginBtnText');
 
             if (user) {
-                console.log("User logged in:", user.email);
                 loginBtnText.textContent = "驗證權限中...";
-                
                 try {
-                    // 檢查 Firebase 白名單集合
                     const whitelistRef = doc(db, "whitelist", user.email);
                     const whitelistSnap = await getDoc(whitelistRef);
 
                     if (whitelistSnap.exists()) {
-                        // --- 驗證成功 ---
-                        console.log("Whitelist check passed");
-                        
-                        // [關鍵修正]：同時移除 flex (排版) 和 add hidden (隱藏)
+                        const userData = whitelistSnap.data();
+                        currentUserEmail = user.email;
+                        currentUserRole = userData.role || 'operator'; // 取得角色，若無則預設 operator
+
+                        // UI 切換
                         loginScreen.classList.add('hidden');
                         loginScreen.classList.remove('flex'); 
-                        
                         mainApp.classList.remove('hidden');
                         loginMsg.innerText = "";
                         
-                        document.getElementById('userName').innerText = whitelistSnap.data().name || user.email;
+                        // 設定使用者資訊顯示
+                        document.getElementById('userName').innerText = userData.name || user.email;
                         document.getElementById('userAvatar').src = user.photoURL;
+                        
+                        // 設定角色標籤
+                        const roleBadge = document.getElementById('userRoleBadge');
+                        if (currentUserRole === 'admin') {
+                            roleBadge.innerText = "管理員";
+                            roleBadge.className = "text-[10px] px-1 rounded badge-admin font-bold";
+                            // [關鍵] 顯示管理按鈕
+                            document.getElementById('adminBtn').classList.remove('hidden');
+                            document.getElementById('adminBtn').classList.add('flex');
+                        } else {
+                            roleBadge.innerText = "操作員";
+                            roleBadge.className = "text-[10px] px-1 rounded badge-operator font-bold";
+                            // [關鍵] 隱藏管理按鈕
+                            document.getElementById('adminBtn').classList.add('hidden');
+                            document.getElementById('adminBtn').classList.remove('flex');
+                        }
 
                         startListeners();
                     } else {
@@ -214,73 +260,60 @@
                     }
                 } catch (error) {
                     console.warn("Access denied:", error);
-                    loginMsg.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> 登入失敗：帳號 ${user.email} 無存取權限`;
+                    loginMsg.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> 登入失敗：帳號無權限`;
                     loginMsg.className = "mt-4 text-red-700 bg-red-100 p-3 rounded border border-red-200 text-sm font-bold block";
                     loginBtnText.textContent = "使用 Google 帳號登入";
-                    await signOut(auth); // 強制登出
+                    await signOut(auth);
                 }
             } else {
-                // --- 未登入 ---
-                // 顯示登入頁時，加回 flex 以確保置中
                 loginScreen.classList.remove('hidden');
                 loginScreen.classList.add('flex');
-                
                 mainApp.classList.add('hidden');
                 loginBtnText.textContent = "使用 Google 帳號登入";
-                if(unsubscribeClients) unsubscribeClients();
-                if(unsubscribeMemos) unsubscribeMemos();
             }
         });
 
         window.loginWithGoogle = function() {
-            const loginMsg = document.getElementById('loginMsg');
-            loginMsg.innerText = "";
-            loginMsg.className = "mt-4 text-red-500 text-sm font-bold min-h-[20px]";
-            
-            signInWithPopup(auth, provider).catch((error) => {
-                console.error("Login failed", error);
+            document.getElementById('loginMsg').innerText = "";
+            signInWithPopup(auth, provider).catch(error => {
                 if(error.code === 'auth/unauthorized-domain') {
-                    loginMsg.innerText = "網域未授權，請檢查 Google Cloud API 設定";
+                    document.getElementById('loginMsg').innerText = "網域未授權 (Google Cloud API)";
                 } else {
-                    loginMsg.innerText = "登入失敗 (API Key 限制或網路錯誤)";
+                    document.getElementById('loginMsg').innerText = "登入失敗";
                 }
             });
         }
 
         window.logout = function() {
-            if(confirm("確定要登出嗎?")) {
-                signOut(auth).then(() => location.reload());
-            }
+            if(confirm("確定要登出嗎?")) signOut(auth).then(() => location.reload());
         }
 
-        // --- 資料庫操作 (保持不變) ---
-
+        // --- 資料庫監聽 ---
         function startListeners() {
             const qClients = query(collection(db, "clients"), orderBy("code"));
             unsubscribeClients = onSnapshot(qClients, (snapshot) => {
                 clientsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAll();
-            }, (error) => console.error("Client listener error:", error));
-
+            });
             const qMemos = query(collection(db, "memos"), orderBy("timestamp", "desc"));
             unsubscribeMemos = onSnapshot(qMemos, (snapshot) => {
                 memosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAll();
-            }, (error) => console.error("Memo listener error:", error));
+            });
         }
 
         function renderAll() {
-            renderDashboard();
-            renderClientManager();
-            renderClientSelect();
+            window.renderDashboard();
+            window.renderClientManager();
+            window.renderClientSelect();
         }
 
+        // --- 核心渲染邏輯 (備忘錄部分不變) ---
         window.renderDashboard = function() {
             const tbody = document.getElementById('clientTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const sortMode = document.getElementById('sortSelect').value;
             tbody.innerHTML = '';
-
             let displayClients = [...clientsData];
             if (sortMode === 'name') displayClients.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -290,7 +323,6 @@
                 const completed = clientMemos.filter(m => m.status === 'completed').length;
                 const processing = clientMemos.filter(m => m.status === 'processing').length;
                 const pending = clientMemos.filter(m => m.status === 'pending').length;
-
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-gray-100 hover:bg-gray-50 transition";
                 tr.innerHTML = `
@@ -307,7 +339,6 @@
             });
             if (tbody.innerHTML === '') tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">無符合資料</td></tr>';
         }
-
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
@@ -322,7 +353,6 @@
                 tbody.appendChild(tr);
             });
         }
-
         window.renderClientSelect = function() {
             const select = document.getElementById('memoClientSelect');
             const currentVal = select.value;
@@ -336,42 +366,110 @@
             if (currentVal) select.value = currentVal;
         }
 
+        // --- 寫入與刪除 ---
         window.saveClient = async function() {
-            const btn = document.getElementById('saveClientBtn');
             const code = document.getElementById('newClientCode').value.trim();
             const name = document.getElementById('newClientName').value.trim();
             if(!code || !name) return;
-            try {
-                btn.textContent = '新增中...'; btn.disabled = true;
-                await addDoc(collection(db, "clients"), { code, name, timestamp: serverTimestamp() });
-                window.closeModal('clientModal');
-                document.getElementById('newClientCode').value = '';
-                document.getElementById('newClientName').value = '';
-            } catch (error) { console.error(error); alert("新增失敗"); } 
-            finally { btn.textContent = '新增'; btn.disabled = false; }
+            try { await addDoc(collection(db, "clients"), { code, name, timestamp: serverTimestamp() }); window.closeModal('clientModal'); document.getElementById('newClientCode').value=''; document.getElementById('newClientName').value=''; } catch(e){alert("新增失敗");}
         }
-
         window.deleteClient = async function(id) {
-            if(confirm('確定刪除此客戶?')) { try { await deleteDoc(doc(db, "clients", id)); } catch (e) { alert('刪除失敗'); } }
+            if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");}
         }
-
         window.saveMemo = async function() {
-            const btn = document.getElementById('saveMemoBtn');
             const clientCode = document.getElementById('memoClientSelect').value;
             const content = document.getElementById('memoContent').value;
             const status = document.getElementById('memoStatus').value;
             const feedback = document.getElementById('memoFeedback').value;
             if(!clientCode) { alert('請選擇客戶'); return; }
-            try {
-                btn.textContent = '保存中...'; btn.disabled = true;
-                await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() });
-                window.closeModal('memoModal');
-                document.getElementById('memoForm').reset();
-                document.getElementById('selectedClientDisplay').classList.add('hidden');
-            } catch (error) { console.error(error); alert("保存失敗"); } 
-            finally { btn.textContent = '保存至雲端'; btn.disabled = false; }
+            try { await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() }); window.closeModal('memoModal'); document.getElementById('memoForm').reset(); document.getElementById('selectedClientDisplay').classList.add('hidden'); } catch(e){alert("保存失敗");}
         }
 
+        // ================= 員工管理邏輯 (權限檢查版) =================
+
+        window.openEmployeeModal = async function() {
+            if (currentUserRole !== 'admin') {
+                alert("權限不足：只有管理員可以存取此功能");
+                return;
+            }
+
+            document.getElementById('employeeModal').classList.remove('opacity-0', 'pointer-events-none');
+            const tbody = document.getElementById('employeeTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center">載入中...</td></tr>';
+            
+            try {
+                const querySnapshot = await getDocs(collection(db, "whitelist"));
+                tbody.innerHTML = '';
+                querySnapshot.forEach((docSnap) => {
+                    const emp = docSnap.data();
+                    const email = docSnap.id;
+                    const isSelf = email === currentUserEmail;
+                    const role = emp.role || 'operator'; // 預設 operator
+                    
+                    // 角色標籤 UI
+                    const roleLabel = role === 'admin' 
+                        ? `<span class="badge-admin text-xs px-2 py-1 rounded">管理員</span>`
+                        : `<span class="badge-operator text-xs px-2 py-1 rounded">操作員</span>`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-gray-100 hover:bg-gray-50";
+                    tr.innerHTML = `
+                        <td class="p-3 font-bold text-gray-700">${emp.name || '-'}</td>
+                        <td class="p-3 text-gray-500 font-mono text-xs">${email}</td>
+                        <td class="p-3">${roleLabel}</td>
+                        <td class="p-3 text-right">
+                            ${isSelf ? '<span class="text-xs text-gray-400">你自己</span>' : 
+                            `<button onclick="window.deleteEmployee('${email}')" class="text-red-400 hover:text-red-600 px-2"><i class="fas fa-trash-alt"></i></button>`}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-red-500">載入失敗 (請檢查權限)</td></tr>';
+            }
+        }
+
+        window.saveEmployee = async function() {
+            const email = document.getElementById('empEmail').value.trim();
+            const name = document.getElementById('empName').value.trim();
+            const role = document.getElementById('empRole').value; // 取得選取的角色
+            const btn = document.getElementById('saveEmpBtn');
+
+            if(!email || !name) return;
+            
+            try {
+                btn.textContent = '...'; btn.disabled = true;
+                await setDoc(doc(db, "whitelist", email), {
+                    name: name,
+                    role: role, // 寫入角色
+                    addedBy: currentUserEmail,
+                    timestamp: serverTimestamp()
+                });
+                
+                document.getElementById('empEmail').value = '';
+                document.getElementById('empName').value = '';
+                window.openEmployeeModal();
+            } catch(e) {
+                console.error(e);
+                alert("新增失敗：只有管理員可以執行此操作");
+            } finally {
+                btn.innerHTML = '<i class="fas fa-save mr-1"></i> 儲存'; btn.disabled = false;
+            }
+        }
+
+        window.deleteEmployee = async function(email) {
+            if(confirm(`確定要移除 ${email} 的權限嗎?`)) {
+                try {
+                    await deleteDoc(doc(db, "whitelist", email));
+                    window.openEmployeeModal();
+                } catch(e) {
+                    alert("刪除失敗：只有管理員可以執行此操作");
+                }
+            }
+        }
+
+        // --- UI Events ---
         document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
         document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
         window.toggleView = (view) => {
