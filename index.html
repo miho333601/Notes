@@ -3,27 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (雲端同步版)</title>
+    <title>公司備忘錄系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
-        /* 載入中的遮罩 */
-        #loader { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; display:flex; justify-content:center; align-items:center; }
     </style>
 </head>
 <body>
 
-    <div id="loader">
-        <div class="text-xl font-bold text-blue-600"><i class="fas fa-circle-notch fa-spin"></i> 資料同步中...</div>
-    </div>
-
     <nav class="bg-white shadow-sm p-4 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-gray-800">備忘錄系統 <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded ml-2">雲端連線中</span></h1>
-            <div class="text-gray-500 text-sm">使用者：Admin</div>
+            <h1 class="text-xl font-bold text-gray-800">備忘錄系統</h1>
+            <div class="text-gray-500 text-sm">歡迎，<span id="currentUser">User</span></div>
         </div>
     </nav>
 
@@ -102,7 +96,7 @@
                     </div>
                 </div>
                 
-                <form id="memoForm">
+                <form id="memoForm" onsubmit="saveMemo(event)">
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label>
                         <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="updateMemoClientDisplay()">
@@ -133,7 +127,7 @@
                     </div>
 
                     <div class="flex justify-end pt-2">
-                        <button type="submit" id="btnSaveMemo" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
+                        <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
                             保存
                         </button>
                     </div>
@@ -152,7 +146,7 @@
                         <i class="fas fa-times"></i>
                     </div>
                 </div>
-                <form id="clientForm">
+                <form onsubmit="saveClient(event)">
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">客戶代號</label>
                         <input id="newClientCode" type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 outline-none" placeholder="例如: C002" required>
@@ -163,29 +157,202 @@
                     </div>
                     <div class="flex justify-end gap-2">
                         <button type="button" onclick="closeModal('clientModal')" class="bg-white border text-gray-700 px-4 py-2 rounded">取消</button>
-                        <button type="submit" id="btnSaveClient" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button>
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <script type="module">
-        // 1. 引入 Firebase 模組 (使用 CDN 網址)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+    <script>
+        // 初始化數據 (模擬資料庫)
+        let clients = JSON.parse(localStorage.getItem('clients')) || [
+            { code: '49001', name: '鑫權威' },
+            { code: '49002', name: '捷騰' },
+            { code: '49010', name: '捷鼎' }
+        ];
 
-        // 2. 你的 Firebase 配置
-        const firebaseConfig = {
-          apiKey: "AIzaSyAvo1Q_O9Mxp-N3bbUQlTppXxc_h5Ame-E",
-          authDomain: "notes-8be76.firebaseapp.com",
-          projectId: "notes-8be76",
-          storageBucket: "notes-8be76.firebasestorage.app",
-          messagingSenderId: "1036855189662",
-          appId: "1:1036855189662:web:4863ff65f63ab00a995b8f",
-          measurementId: "G-KMB6Q7VK8Z"
-        };
+        let memos = JSON.parse(localStorage.getItem('memos')) || [];
 
-        // 3. 初始化 Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore
+        // 頁面加載時執行
+        document.addEventListener('DOMContentLoaded', () => {
+            renderDashboard();
+            renderClientSelect();
+        });
+
+        // --- 渲染功能 ---
+
+        function renderDashboard() {
+            const tbody = document.getElementById('clientTableBody');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            tbody.innerHTML = '';
+
+            clients.forEach(client => {
+                // 搜尋過濾
+                if (!client.name.toLowerCase().includes(search) && !client.code.toLowerCase().includes(search)) return;
+
+                // 統計數據
+                const clientMemos = memos.filter(m => m.clientCode === client.code);
+                const completed = clientMemos.filter(m => m.status === 'completed').length;
+                const processing = clientMemos.filter(m => m.status === 'processing').length;
+                const pending = clientMemos.filter(m => m.status === 'pending').length;
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-gray-50";
+                tr.innerHTML = `
+                    <td class="p-4 text-gray-600">${client.code}</td>
+                    <td class="p-4 font-medium text-gray-800">${client.name}</td>
+                    <td class="p-4">
+                        <div class="text-sm space-y-1">
+                            <div class="text-green-600"><i class="fas fa-check mr-1"></i> 已完成: ${completed}</div>
+                            <div class="text-blue-500"><i class="fas fa-sync mr-1"></i> 處理中: ${processing}</div>
+                            <div class="text-orange-500"><i class="far fa-circle mr-1"></i> 尚未完成: ${pending}</div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-right">
+                        <button onclick="alert('查看詳細功能需連接後端資料庫')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm flex items-center inline-flex">
+                            <i class="fas fa-eye mr-1"></i> 查看
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderClientManager() {
+            const tbody = document.getElementById('manageClientTableBody');
+            tbody.innerHTML = '';
+            clients.forEach((client, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100";
+                tr.innerHTML = `
+                    <td class="p-4">${client.code}</td>
+                    <td class="p-4">${client.name}</td>
+                    <td class="p-4 text-right space-x-2">
+                        <button class="text-gray-500 hover:text-blue-600"><i class="fas fa-pen"></i></button>
+                        <button onclick="deleteClient(${index})" class="text-gray-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderClientSelect() {
+            const select = document.getElementById('memoClientSelect');
+            select.innerHTML = '<option value="" disabled selected>請選擇客戶</option>';
+            clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.code;
+                option.text = `${client.code} - ${client.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        // --- 交互功能 ---
+
+        function toggleView(viewName) {
+            const dashboard = document.getElementById('dashboardView');
+            const manager = document.getElementById('clientManagerView');
+            
+            if (viewName === 'clientManager') {
+                dashboard.classList.add('hidden');
+                manager.classList.remove('hidden');
+                renderClientManager();
+            } else {
+                manager.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+                renderDashboard();
+            }
+        }
+
+        function updateMemoClientDisplay() {
+            const select = document.getElementById('memoClientSelect');
+            const display = document.getElementById('selectedClientDisplay');
+            const codeSpan = document.getElementById('displayClientCode');
+            const nameSpan = document.getElementById('displayClientName');
+            
+            const client = clients.find(c => c.code === select.value);
+            if (client) {
+                display.classList.remove('hidden');
+                codeSpan.innerText = client.code;
+                nameSpan.innerText = client.name;
+            }
+        }
+
+        // --- Modal 控制 ---
+        
+        function openMemoModal() {
+            const modal = document.getElementById('memoModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function openClientModal() {
+            const modal = document.getElementById('clientModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        // --- 數據存取 (Local Storage) ---
+
+        function saveClient(e) {
+            e.preventDefault();
+            const code = document.getElementById('newClientCode').value;
+            const name = document.getElementById('newClientName').value;
+
+            clients.push({ code, name });
+            localStorage.setItem('clients', JSON.stringify(clients));
+            
+            closeModal('clientModal');
+            renderClientManager();
+            renderClientSelect(); // 更新下拉選單
+            
+            // 清空
+            document.getElementById('newClientCode').value = '';
+            document.getElementById('newClientName').value = '';
+        }
+
+        function deleteClient(index) {
+            if(confirm('確定刪除此客戶?')) {
+                clients.splice(index, 1);
+                localStorage.setItem('clients', JSON.stringify(clients));
+                renderClientManager();
+                renderClientSelect();
+            }
+        }
+
+        function saveMemo(e) {
+            e.preventDefault();
+            const clientCode = document.getElementById('memoClientSelect').value;
+            const content = document.getElementById('memoContent').value;
+            const status = document.getElementById('memoStatus').value;
+            const feedback = document.getElementById('memoFeedback').value;
+
+            if(!clientCode) { alert('請選擇客戶'); return; }
+
+            const newMemo = {
+                id: Date.now(),
+                clientCode,
+                content,
+                status,
+                feedback,
+                date: new Date().toISOString()
+            };
+
+            memos.push(newMemo);
+            localStorage.setItem('memos', JSON.stringify(memos));
+
+            closeModal('memoModal');
+            renderDashboard();
+
+            // Reset form
+            document.getElementById('memoForm').reset();
+            document.getElementById('selectedClientDisplay').classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
