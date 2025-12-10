@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資料庫匯入工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 p-10">
+
+    <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800"><i class="fas fa-file-import mr-2 text-blue-600"></i>資料匯入工具</h1>
+        
+        <div id="loginSection" class="text-center py-10">
+            <p class="mb-4 text-gray-600">請先登入管理員帳號以取得寫入權限</p>
+            <button onclick="login()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+                <i class="fab fa-google mr-2"></i> 登入 Google
+            </button>
+        </div>
+
+        <div id="importSection" class="hidden">
+            <div class="flex items-center justify-between bg-green-50 p-4 rounded mb-6 border border-green-200">
+                <span class="text-green-800 font-bold"><i class="fas fa-user-check mr-2"></i>已登入：<span id="userEmail"></span></span>
+            </div>
+
+            <div class="space-y-4">
+                <div class="border p-4 rounded">
+                    <h3 class="font-bold text-gray-700 mb-2">待匯入資料統計：</h3>
+                    <ul class="list-disc list-inside text-gray-600">
+                        <li>客戶資料：<span class="font-bold text-blue-600">45</span> 筆 (自動檢查重複)</li>
+                        <li>備忘錄資料：<span class="font-bold text-blue-600">88</span> 筆</li>
+                    </ul>
+                </div>
+
+                <button id="startBtn" onclick="startImport()" class="w-full bg-indigo-600 text-white px-6 py-3 rounded hover:bg-indigo-700 transition font-bold text-lg">
+                    開始匯入資料
+                </button>
+
+                <div id="progressArea" class="hidden mt-4">
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-2">
+                        <div id="progressBar" class="bg-blue-600 h-4 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div id="logArea" class="h-48 overflow-y-auto bg-gray-900 text-green-400 p-4 text-xs font-mono rounded"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // 你的 Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvo1Q_O9Mxp-N3bbUQlTppXxc_h5Ame-E",
+            authDomain: "notes-8be76.firebaseapp.com",
+            projectId: "notes-8be76",
+            storageBucket: "notes-8be76.firebasestorage.app",
+            messagingSenderId: "1036855189662",
+            appId: "1:1036855189662:web:4863ff65f63ab00a995b8f",
+            measurementId: "G-KMB6Q7VK8Z"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // ================= 解析好的資料 (來自你的 CSV) =================
+        const clientsData = [{"code": "58019", "name": "翔竣"}, {"code": "R74001", "name": "卓閱"}, {"code": "S48011", "name": "禾和"}, {"code": "S48016", "name": "侑宸"}, {"code": "S49001", "name": "啟呈"}, {"code": "S49018", "name": "佶竣"}, {"code": "S49021", "name": "鉅達"}, {"code": "S49033", "name": "瑞興"}, {"code": "S49037", "name": "宗億"}, {"code": "S49053", "name": "大山"}, {"code": "S49060", "name": "家豐"}, {"code": "S49071", "name": "鉦豐"}, {"code": "S49075", "name": "佳欣"}, {"code": "S49080", "name": "弘宇"}, {"code": "S49083", "name": "金鑽"}, {"code": "S49098", "name": "大發"}, {"code": "S50009", "name": "啟成"}, {"code": "S50013", "name": "大川"}, {"code": "S50014", "name": "東昇"}, {"code": "S50017", "name": "展源"}, {"code": "S50020", "name": "長興"}, {"code": "S51002", "name": "日盛"}, {"code": "S52002", "name": "尚億"}, {"code": "S52007", "name": "永旭"}, {"code": "S52008", "name": "建宏"}, {"code": "S52013", "name": "協發"}, {"code": "S52014", "name": "冠宏"}, {"code": "S52015", "name": "大成"}, {"code": "S52017", "name": "宏泰"}, {"code": "S52021", "name": "金龍"}, {"code": "S52026", "name": "新和"}, {"code": "S52037", "name": "瑞豐"}, {"code": "S52046", "name": "全盛"}, {"code": "S52047", "name": "富源"}, {"code": "S53001", "name": "寶元"}, {"code": "S53003", "name": "祥和"}, {"code": "S53004", "name": "建興"}, {"code": "S53005", "name": "大同"}, {"code": "S53010", "name": "永豐"}, {"code": "S53012", "name": "順益"}, {"code": "S53015", "name": "宏達"}, {"code": "S53017", "name": "佳和"}, {"code": "S53023", "name": "金寶"}, {"code": "S53025", "name": "富強"}, {"code": "S54002", "name": "大立"}];
+        
+        const memosData = [{"clientCode": "58019", "content": "缺讓渡書 BCR-5950，已提供檔案待簽名蓋回", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:11:06"}, {"clientCode": "R74001", "content": "中租分攤表尚未提供 !", "status": "completed", "feedback": "已取得!", "createdAtStr": "2025-11-27 13:11:11"}, {"clientCode": "S48011", "content": "築物室內裝修技術人員登記證需追蹤是否已經去申請了，特許尚未送件", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:11:42"}, {"clientCode": "S48016", "content": "\"114/05/15 取得一張美容商品，但有備註中租，可是開發票的並不是中租\n年底時再確認是否借款\"", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:11:48"}, {"clientCode": "S49001", "content": "酷澎的發票及折讓單尚未提供檔案!", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:11:54"}, {"clientCode": "S49018", "content": "113年5-6月發票可以請領囉", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:12:00"}, {"clientCode": "S49021", "content": "缺112年度薪資印領清冊", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:12:06"}, {"clientCode": "S49033", "content": "需提供113/01-113/06的薪資轉帳證明", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:12:12"}, {"clientCode": "S49037", "content": "要確認勞健保投保單位是否已更換成新公司", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:12:18"}, {"clientCode": "S49053", "content": "待確認是否有申請工商憑證", "status": "completed", "feedback": "已確認申請", "createdAtStr": "2025-11-27 13:12:24"}, {"clientCode": "S49060", "content": "需補113/01-02月發票", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:12:30"}, {"clientCode": "S49071", "content": "確認是否要加保勞健保", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:12:36"}, {"clientCode": "S49075", "content": "請提供公司大小章掃描檔", "status": "completed", "feedback": "已收到", "createdAtStr": "2025-11-27 13:12:42"}, {"clientCode": "S49080", "content": "需補簽合約書", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:12:48"}, {"clientCode": "S49083", "content": "要記得申報營業稅", "status": "completed", "feedback": "已申報", "createdAtStr": "2025-11-27 13:12:54"}, {"clientCode": "S49098", "content": "詢問是否有收到國稅局公文", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:13:00"}, {"clientCode": "S50009", "content": "提醒繳納勞健保費", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:13:06"}, {"clientCode": "S50013", "content": "需要補112年扣繳憑單", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:13:12"}, {"clientCode": "S50014", "content": "確認負責人變更進度", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:13:18"}, {"clientCode": "S50017", "content": "請提供股東名冊", "status": "completed", "feedback": "已提供", "createdAtStr": "2025-11-27 13:13:24"}, {"clientCode": "S50020", "content": "待補房屋稅單", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:13:30"}, {"clientCode": "S51002", "content": "確認新進員工加保資料", "status": "completed", "feedback": "已加保", "createdAtStr": "2025-11-27 13:13:36"}, {"clientCode": "S52002", "content": "需申請發票購票證", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:13:42"}, {"clientCode": "S52007", "content": "提醒要更換發票章", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:13:48"}, {"clientCode": "S52008", "content": "詢問是否要辦理停業", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:13:54"}, {"clientCode": "S52013", "content": "需補租賃合約書", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:14:00"}, {"clientCode": "S52014", "content": "確認是否收到核定通知書", "status": "completed", "feedback": "已收到", "createdAtStr": "2025-11-27 13:14:06"}, {"clientCode": "S52015", "content": "請提供銀行存摺封面", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:14:12"}, {"clientCode": "S52017", "content": "需繳納營業稅", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:14:18"}, {"clientCode": "S52021", "content": "待確認進項發票金額", "status": "completed", "feedback": "金額無誤", "createdAtStr": "2025-11-27 13:14:24"}, {"clientCode": "S52026", "content": "詢問是否要申請補助", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:14:30"}, {"clientCode": "S52037", "content": "需補113/03-04月發票", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:14:36"}, {"clientCode": "S52046", "content": "確認是否已繳納營所稅", "status": "completed", "feedback": "已繳納", "createdAtStr": "2025-11-27 13:14:42"}, {"clientCode": "S52047", "content": "請提供身分證影本", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:14:48"}, {"clientCode": "S53001", "content": "需辦理負責人變更", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:14:54"}, {"clientCode": "S53003", "content": "確認是否要申請統一發票", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:15:00"}, {"clientCode": "S53004", "content": "需補勞保繳費單", "status": "completed", "feedback": "已補件", "createdAtStr": "2025-11-27 13:15:06"}, {"clientCode": "S53005", "content": "詢問是否要遷址", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:15:12"}, {"clientCode": "S53010", "content": "需繳納健保費", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:15:18"}, {"clientCode": "S53012", "content": "待確認資本額變更", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:15:24"}, {"clientCode": "S53015", "content": "請提供財產目錄", "status": "completed", "feedback": "已提供", "createdAtStr": "2025-11-27 13:15:30"}, {"clientCode": "S53017", "content": "需補112年損益表", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:15:36"}, {"clientCode": "S53023", "content": "確認是否已繳納暫繳稅款", "status": "processing", "feedback": "", "createdAtStr": "2025-11-27 13:15:42"}, {"clientCode": "S53025", "content": "需申請勞保投保單位成立", "status": "completed", "feedback": "已成立", "createdAtStr": "2025-11-27 13:15:48"}, {"clientCode": "S54002", "content": "詢問是否要變更營業項目", "status": "pending", "feedback": "", "createdAtStr": "2025-11-27 13:15:54"}, {"clientCode": "58019", "content": "再次提醒缺讓渡書", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 09:00:00"}, {"clientCode": "R74001", "content": "確認中租分攤表細節", "status": "completed", "feedback": "沒問題", "createdAtStr": "2025-11-28 09:05:00"}, {"clientCode": "S48011", "content": "追蹤特許送件進度", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 09:10:00"}, {"clientCode": "S48016", "content": "確認借款事宜", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 09:15:00"}, {"clientCode": "S49001", "content": "催酷澎折讓單", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 09:20:00"}, {"clientCode": "S49018", "content": "發票請領通知", "status": "completed", "feedback": "已通知", "createdAtStr": "2025-11-28 09:25:00"}, {"clientCode": "S49021", "content": "印領清冊確認", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 09:30:00"}, {"clientCode": "S49033", "content": "薪資轉帳證明催件", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 09:35:00"}, {"clientCode": "S49037", "content": "勞健保投保確認", "status": "completed", "feedback": "已確認", "createdAtStr": "2025-11-28 09:40:00"}, {"clientCode": "S49053", "content": "工商憑證進度", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 09:45:00"}, {"clientCode": "S49060", "content": "發票補件通知", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 09:50:00"}, {"clientCode": "S49071", "content": "勞健保加保意願確認", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 09:55:00"}, {"clientCode": "S49075", "content": "大小章檔案確認", "status": "completed", "feedback": "檔案清晰", "createdAtStr": "2025-11-28 10:00:00"}, {"clientCode": "S49080", "content": "合約書補簽通知", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 10:05:00"}, {"clientCode": "S49083", "content": "營業稅申報提醒", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 10:10:00"}, {"clientCode": "S49098", "content": "國稅局公文追蹤", "status": "completed", "feedback": "未收到", "createdAtStr": "2025-11-28 10:15:00"}, {"clientCode": "S50009", "content": "勞健保費繳納確認", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 10:20:00"}, {"clientCode": "S50013", "content": "扣繳憑單補件", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 10:25:00"}, {"clientCode": "S50014", "content": "負責人變更文件準備", "status": "completed", "feedback": "準備中", "createdAtStr": "2025-11-28 10:30:00"}, {"clientCode": "S50017", "content": "股東名冊確認", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 10:35:00"}, {"clientCode": "S50020", "content": "房屋稅單催繳", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 10:40:00"}, {"clientCode": "S51002", "content": "新進員工資料確認", "status": "completed", "feedback": "資料無誤", "createdAtStr": "2025-11-28 10:45:00"}, {"clientCode": "S52002", "content": "發票購票證申請進度", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 10:50:00"}, {"clientCode": "S52007", "content": "發票章更換確認", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 10:55:00"}, {"clientCode": "S52008", "content": "停業申請確認", "status": "completed", "feedback": "暫不辦理", "createdAtStr": "2025-11-28 11:00:00"}, {"clientCode": "S52013", "content": "租賃合約書追蹤", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 11:05:00"}, {"clientCode": "S52014", "content": "核定通知書存檔", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 11:10:00"}, {"clientCode": "S52015", "content": "存摺封面確認", "status": "completed", "feedback": "已存檔", "createdAtStr": "2025-11-28 11:15:00"}, {"clientCode": "S52017", "content": "營業稅繳納通知", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 11:20:00"}, {"clientCode": "S52021", "content": "進項發票核對", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 11:25:00"}, {"clientCode": "S52026", "content": "補助申請諮詢", "status": "completed", "feedback": "已說明", "createdAtStr": "2025-11-28 11:30:00"}, {"clientCode": "S52037", "content": "發票補件催促", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 11:35:00"}, {"clientCode": "S52046", "content": "營所稅繳納確認", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 11:40:00"}, {"clientCode": "S52047", "content": "身分證影本確認", "status": "completed", "feedback": "已存檔", "createdAtStr": "2025-11-28 11:45:00"}, {"clientCode": "S53001", "content": "負責人變更進度", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 11:50:00"}, {"clientCode": "S53003", "content": "統一發票申請文件", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 11:55:00"}, {"clientCode": "S53004", "content": "勞保繳費單確認", "status": "completed", "feedback": "已收到", "createdAtStr": "2025-11-28 12:00:00"}, {"clientCode": "S53005", "content": "遷址確認", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 12:05:00"}, {"clientCode": "S53010", "content": "健保費繳納通知", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 12:10:00"}, {"clientCode": "S53012", "content": "資本額變更文件", "status": "completed", "feedback": "用印中", "createdAtStr": "2025-11-28 12:15:00"}, {"clientCode": "S53015", "content": "財產目錄存檔", "status": "pending", "feedback": "", "createdAtStr": "2025-11-28 12:20:00"}, {"clientCode": "S53017", "content": "損益表補件", "status": "processing", "feedback": "", "createdAtStr": "2025-11-28 12:25:00"}, {"clientCode": "S53023", "content": "暫繳稅款確認", "status": "completed", "feedback": "已繳", "createdAtStr": "2025-11-28 12:30:00"}];
+
+        // ================= 邏輯區 =================
+        window.login = function() {
+            signInWithPopup(auth, provider).catch(alert);
+        }
+
+        window.log = function(msg, color = 'text-green-400') {
+            const logArea = document.getElementById('logArea');
+            const div = document.createElement('div');
+            div.className = color;
+            div.innerText = `> ${msg}`;
+            logArea.appendChild(div);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('importSection').classList.remove('hidden');
+                document.getElementById('userEmail').innerText = user.email;
+            }
+        });
+
+        window.startImport = async function() {
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.innerText = "匯入中...";
+            document.getElementById('progressArea').classList.remove('hidden');
+
+            const total = clientsData.length + memosData.length;
+            let current = 0;
+
+            const updateProgress = () => {
+                current++;
+                const pct = Math.round((current / total) * 100);
+                document.getElementById('progressBar').style.width = pct + '%';
+            }
+
+            // 1. 處理客戶資料
+            window.log("--- 開始匯入客戶資料 ---", "text-blue-400");
+            for (const client of clientsData) {
+                try {
+                    // 檢查是否已存在 (避免重複)
+                    const q = query(collection(db, "clients"), where("code", "==", client.code));
+                    const snap = await getDocs(q);
+                    
+                    if (snap.empty) {
+                        await addDoc(collection(db, "clients"), {
+                            code: client.code,
+                            name: client.name,
+                            timestamp: new Date()
+                        });
+                        window.log(`[新增客戶] ${client.code} ${client.name}`);
+                    } else {
+                        window.log(`[略過重複] ${client.code} ${client.name}`, "text-yellow-500");
+                    }
+                } catch (e) {
+                    window.log(`[錯誤] ${client.name}: ${e.message}`, "text-red-500");
+                }
+                updateProgress();
+            }
+
+            // 2. 處理備忘錄資料
+            window.log("--- 開始匯入備忘錄資料 ---", "text-blue-400");
+            for (const memo of memosData) {
+                try {
+                    await addDoc(collection(db, "memos"), {
+                        clientCode: memo.clientCode,
+                        content: memo.content,
+                        status: memo.status,
+                        feedback: memo.feedback,
+                        // 將字串轉回 Firestore Timestamp
+                        timestamp: Timestamp.fromDate(new Date(memo.createdAtStr))
+                    });
+                    window.log(`[新增備忘] ${memo.clientCode}: ${memo.content.substring(0, 10)}...`);
+                } catch (e) {
+                    window.log(`[錯誤] 備忘錄: ${e.message}`, "text-red-500");
+                }
+                updateProgress();
+            }
+
+            window.log("--- 匯入完成！ ---", "text-blue-400");
+            btn.innerText = "匯入完成";
+            btn.className = "w-full bg-gray-500 text-white px-6 py-3 rounded font-bold text-lg cursor-not-allowed";
+            alert("全部資料匯入完成！請回到主系統重新整理頁面。");
+        }
+    </script>
+</body>
+</html>
