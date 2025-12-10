@@ -3,21 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統</title>
+    <title>公司備忘錄系統 (雲端同步版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
+        /* 載入中動畫 */
+        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <nav class="bg-white shadow-sm p-4 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-gray-800">備忘錄系統</h1>
-            <div class="text-gray-500 text-sm">歡迎，<span id="currentUser">User</span></div>
+            <h1 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-cloud text-blue-500 mr-2"></i>備忘錄系統
+            </h1>
+            <div class="text-gray-500 text-sm flex items-center gap-2">
+                <span id="connectionStatus" class="text-green-600 text-xs font-bold px-2 py-1 bg-green-100 rounded-full">連線正常</span>
+                <span>歡迎使用</span>
+            </div>
         </div>
     </nav>
 
@@ -26,10 +34,10 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 class="text-3xl font-bold text-gray-800">客戶備忘錄</h2>
             <div class="flex gap-2">
-                <button onclick="toggleView('clientManager')" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition">
+                <button onclick="window.toggleView('clientManager')" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition">
                     客戶管理
                 </button>
-                <button onclick="openMemoModal()" class="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition flex items-center">
+                <button onclick="window.openMemoModal()" class="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition flex items-center">
                     <i class="fas fa-plus mr-2"></i> 新增備忘錄
                 </button>
             </div>
@@ -38,18 +46,18 @@
         <div class="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-col md:flex-row gap-4">
             <div class="relative flex-grow">
                 <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                <input type="text" id="searchInput" placeholder="搜尋客戶代號或名稱..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded focus:outline-none focus:border-blue-500" onkeyup="renderDashboard()">
+                <input type="text" id="searchInput" placeholder="搜尋客戶代號或名稱..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded focus:outline-none focus:border-blue-500">
             </div>
             <div class="flex items-center">
                 <span class="mr-2 text-gray-600">排序方式:</span>
-                <select class="border border-gray-200 rounded px-3 py-2 focus:outline-none" onchange="renderDashboard()">
-                    <option value="default">無排序</option>
+                <select id="sortSelect" class="border border-gray-200 rounded px-3 py-2 focus:outline-none">
+                    <option value="default">最新更新</option>
                     <option value="name">客戶名稱</option>
                 </select>
             </div>
         </div>
 
-        <div id="dashboardView" class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div id="dashboardView" class="bg-white rounded-lg shadow-sm overflow-hidden min-h-[300px]">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-gray-50 text-gray-600 border-b border-gray-100">
@@ -60,7 +68,8 @@
                     </tr>
                 </thead>
                 <tbody id="clientTableBody">
-                    </tbody>
+                    <tr><td colspan="4" class="p-8 text-center text-gray-400">正在同步雲端資料...</td></tr>
+                </tbody>
             </table>
         </div>
 
@@ -68,8 +77,8 @@
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-gray-800">客戶管理</h3>
                 <div class="flex gap-2">
-                    <button onclick="toggleView('dashboard')" class="bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"> <i class="fas fa-arrow-left"></i> 返回</button>
-                    <button onclick="openClientModal()" class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900"> <i class="fas fa-plus"></i> 新增客戶</button>
+                    <button onclick="window.toggleView('dashboard')" class="bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300"> <i class="fas fa-arrow-left"></i> 返回</button>
+                    <button onclick="window.openClientModal()" class="bg-blue-800 text-white px-3 py-1 rounded hover:bg-blue-900"> <i class="fas fa-plus"></i> 新增客戶</button>
                 </div>
             </div>
             <table class="w-full text-left border-collapse">
@@ -87,19 +96,19 @@
 
     <div id="memoModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto">
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-screen">
             <div class="modal-content py-4 text-left px-6">
                 <div class="flex justify-between items-center pb-3">
                     <p class="text-2xl font-bold">新增備忘錄</p>
-                    <div class="cursor-pointer z-50" onclick="closeModal('memoModal')">
+                    <div class="cursor-pointer z-50" onclick="window.closeModal('memoModal')">
                         <i class="fas fa-times text-gray-500"></i>
                     </div>
                 </div>
                 
-                <form id="memoForm" onsubmit="saveMemo(event)">
+                <form id="memoForm" onsubmit="event.preventDefault(); window.saveMemo()">
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label>
-                        <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="updateMemoClientDisplay()">
+                        <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()">
                             </select>
                     </div>
 
@@ -109,7 +118,7 @@
 
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label>
-                        <textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容"></textarea>
+                        <textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea>
                     </div>
 
                     <div class="mb-4">
@@ -127,8 +136,8 @@
                     </div>
 
                     <div class="flex justify-end pt-2">
-                        <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded">
-                            保存
+                        <button type="submit" id="saveMemoBtn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition">
+                            保存至雲端
                         </button>
                     </div>
                 </form>
@@ -142,11 +151,11 @@
             <div class="modal-content py-4 text-left px-6">
                 <div class="flex justify-between items-center pb-3">
                     <p class="text-xl font-bold">新增客戶</p>
-                    <div class="cursor-pointer" onclick="closeModal('clientModal')">
+                    <div class="cursor-pointer" onclick="window.closeModal('clientModal')">
                         <i class="fas fa-times"></i>
                     </div>
                 </div>
-                <form onsubmit="saveClient(event)">
+                <form onsubmit="event.preventDefault(); window.saveClient()">
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">客戶代號</label>
                         <input id="newClientCode" type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 outline-none" placeholder="例如: C002" required>
@@ -156,81 +165,123 @@
                         <input id="newClientName" type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:border-blue-500 outline-none" placeholder="例如: XYZ 公司" required>
                     </div>
                     <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeModal('clientModal')" class="bg-white border text-gray-700 px-4 py-2 rounded">取消</button>
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button>
+                        <button type="button" onclick="window.closeModal('clientModal')" class="bg-white border text-gray-700 px-4 py-2 rounded">取消</button>
+                        <button type="submit" id="saveClientBtn" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <script>
-        // 初始化數據 (模擬資料庫)
-        let clients = JSON.parse(localStorage.getItem('clients')) || [
-            { code: '49001', name: '鑫權威' },
-            { code: '49002', name: '捷騰' },
-            { code: '49010', name: '捷鼎' }
-        ];
+    <script type="module">
+        // 1. 引入 Firebase SDK (使用 CDN)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        let memos = JSON.parse(localStorage.getItem('memos')) || [];
+        // 2. 你的 Firebase 配置
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvo1Q_O9Mxp-N3bbUQlTppXxc_h5Ame-E",
+            authDomain: "notes-8be76.firebaseapp.com",
+            projectId: "notes-8be76",
+            storageBucket: "notes-8be76.firebasestorage.app",
+            messagingSenderId: "1036855189662",
+            appId: "1:1036855189662:web:4863ff65f63ab00a995b8f",
+            measurementId: "G-KMB6Q7VK8Z"
+        };
 
-        // 頁面加載時執行
-        document.addEventListener('DOMContentLoaded', () => {
-            renderDashboard();
-            renderClientSelect();
+        // 3. 初始化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 本地變數
+        let clientsData = [];
+        let memosData = [];
+
+        // --- 4. 監聽資料 (Real-time Listeners) ---
+        
+        // 監聽客戶資料
+        const qClients = query(collection(db, "clients"), orderBy("code"));
+        onSnapshot(qClients, (snapshot) => {
+            clientsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderAll();
         });
 
-        // --- 渲染功能 ---
+        // 監聽備忘錄資料
+        const qMemos = query(collection(db, "memos"), orderBy("timestamp", "desc"));
+        onSnapshot(qMemos, (snapshot) => {
+            memosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderAll();
+        });
 
-        function renderDashboard() {
+        // --- 5. 渲染函式 ---
+
+        function renderAll() {
+            renderDashboard();
+            renderClientManager();
+            renderClientSelect();
+        }
+
+        window.renderDashboard = function() {
             const tbody = document.getElementById('clientTableBody');
             const search = document.getElementById('searchInput').value.toLowerCase();
+            const sortMode = document.getElementById('sortSelect').value;
+            
             tbody.innerHTML = '';
 
-            clients.forEach(client => {
+            let displayClients = [...clientsData];
+
+            // 排序邏輯
+            if (sortMode === 'name') {
+                displayClients.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            displayClients.forEach(client => {
                 // 搜尋過濾
                 if (!client.name.toLowerCase().includes(search) && !client.code.toLowerCase().includes(search)) return;
 
                 // 統計數據
-                const clientMemos = memos.filter(m => m.clientCode === client.code);
+                const clientMemos = memosData.filter(m => m.clientCode === client.code);
                 const completed = clientMemos.filter(m => m.status === 'completed').length;
                 const processing = clientMemos.filter(m => m.status === 'processing').length;
                 const pending = clientMemos.filter(m => m.status === 'pending').length;
 
                 const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-100 hover:bg-gray-50";
+                tr.className = "border-b border-gray-100 hover:bg-gray-50 transition";
                 tr.innerHTML = `
-                    <td class="p-4 text-gray-600">${client.code}</td>
+                    <td class="p-4 text-gray-600 font-mono">${client.code}</td>
                     <td class="p-4 font-medium text-gray-800">${client.name}</td>
                     <td class="p-4">
                         <div class="text-sm space-y-1">
-                            <div class="text-green-600"><i class="fas fa-check mr-1"></i> 已完成: ${completed}</div>
-                            <div class="text-blue-500"><i class="fas fa-sync mr-1"></i> 處理中: ${processing}</div>
-                            <div class="text-orange-500"><i class="far fa-circle mr-1"></i> 尚未完成: ${pending}</div>
+                            <div class="text-green-600"><i class="fas fa-check mr-1 w-4"></i> 已完成: ${completed}</div>
+                            <div class="text-blue-500"><i class="fas fa-sync mr-1 w-4"></i> 處理中: ${processing}</div>
+                            <div class="text-orange-500"><i class="far fa-circle mr-1 w-4"></i> 尚未完成: ${pending}</div>
                         </div>
                     </td>
                     <td class="p-4 text-right">
-                        <button onclick="alert('查看詳細功能需連接後端資料庫')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm flex items-center inline-flex">
+                        <button onclick="alert('詳細記錄:\n' + '${clientMemos.map(m=> '- '+m.content).join('\\n')}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm inline-flex items-center">
                             <i class="fas fa-eye mr-1"></i> 查看
                         </button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+            
+            if (tbody.innerHTML === '') {
+                tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400">無符合資料</td></tr>';
+            }
         }
 
         function renderClientManager() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
-            clients.forEach((client, index) => {
+            clientsData.forEach((client) => {
                 const tr = document.createElement('tr');
                 tr.className = "border-b border-gray-100";
                 tr.innerHTML = `
-                    <td class="p-4">${client.code}</td>
+                    <td class="p-4 font-mono">${client.code}</td>
                     <td class="p-4">${client.name}</td>
                     <td class="p-4 text-right space-x-2">
-                        <button class="text-gray-500 hover:text-blue-600"><i class="fas fa-pen"></i></button>
-                        <button onclick="deleteClient(${index})" class="text-gray-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                        <button onclick="window.deleteClient('${client.id}')" class="text-gray-400 hover:text-red-600 transition p-2"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -239,93 +290,60 @@
 
         function renderClientSelect() {
             const select = document.getElementById('memoClientSelect');
+            const currentVal = select.value; // 保持當前選擇
             select.innerHTML = '<option value="" disabled selected>請選擇客戶</option>';
-            clients.forEach(client => {
+            clientsData.forEach(client => {
                 const option = document.createElement('option');
                 option.value = client.code;
                 option.text = `${client.code} - ${client.name}`;
                 select.appendChild(option);
             });
+            if (currentVal) select.value = currentVal;
         }
 
-        // --- 交互功能 ---
+        // --- 6. 操作功能 (寫入 Firestore) ---
 
-        function toggleView(viewName) {
-            const dashboard = document.getElementById('dashboardView');
-            const manager = document.getElementById('clientManagerView');
-            
-            if (viewName === 'clientManager') {
-                dashboard.classList.add('hidden');
-                manager.classList.remove('hidden');
-                renderClientManager();
-            } else {
-                manager.classList.add('hidden');
-                dashboard.classList.remove('hidden');
-                renderDashboard();
+        window.saveClient = async function() {
+            const btn = document.getElementById('saveClientBtn');
+            const code = document.getElementById('newClientCode').value.trim();
+            const name = document.getElementById('newClientName').value.trim();
+
+            if(!code || !name) return;
+
+            try {
+                btn.textContent = '新增中...';
+                btn.disabled = true;
+                
+                await addDoc(collection(db, "clients"), {
+                    code: code,
+                    name: name,
+                    timestamp: serverTimestamp()
+                });
+
+                window.closeModal('clientModal');
+                document.getElementById('newClientCode').value = '';
+                document.getElementById('newClientName').value = '';
+            } catch (error) {
+                console.error("Error adding client: ", error);
+                alert("新增失敗，請檢查網路或權限");
+            } finally {
+                btn.textContent = '新增';
+                btn.disabled = false;
             }
         }
 
-        function updateMemoClientDisplay() {
-            const select = document.getElementById('memoClientSelect');
-            const display = document.getElementById('selectedClientDisplay');
-            const codeSpan = document.getElementById('displayClientCode');
-            const nameSpan = document.getElementById('displayClientName');
-            
-            const client = clients.find(c => c.code === select.value);
-            if (client) {
-                display.classList.remove('hidden');
-                codeSpan.innerText = client.code;
-                nameSpan.innerText = client.name;
+        window.deleteClient = async function(id) {
+            if(confirm('確定刪除此客戶? (相關備忘錄仍會保留但無法關聯)')) {
+                try {
+                    await deleteDoc(doc(db, "clients", id));
+                } catch (e) {
+                    alert('刪除失敗');
+                }
             }
         }
 
-        // --- Modal 控制 ---
-        
-        function openMemoModal() {
-            const modal = document.getElementById('memoModal');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-        }
-
-        function openClientModal() {
-            const modal = document.getElementById('clientModal');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-        }
-
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            modal.classList.add('opacity-0', 'pointer-events-none');
-        }
-
-        // --- 數據存取 (Local Storage) ---
-
-        function saveClient(e) {
-            e.preventDefault();
-            const code = document.getElementById('newClientCode').value;
-            const name = document.getElementById('newClientName').value;
-
-            clients.push({ code, name });
-            localStorage.setItem('clients', JSON.stringify(clients));
-            
-            closeModal('clientModal');
-            renderClientManager();
-            renderClientSelect(); // 更新下拉選單
-            
-            // 清空
-            document.getElementById('newClientCode').value = '';
-            document.getElementById('newClientName').value = '';
-        }
-
-        function deleteClient(index) {
-            if(confirm('確定刪除此客戶?')) {
-                clients.splice(index, 1);
-                localStorage.setItem('clients', JSON.stringify(clients));
-                renderClientManager();
-                renderClientSelect();
-            }
-        }
-
-        function saveMemo(e) {
-            e.preventDefault();
+        window.saveMemo = async function() {
+            const btn = document.getElementById('saveMemoBtn');
             const clientCode = document.getElementById('memoClientSelect').value;
             const content = document.getElementById('memoContent').value;
             const status = document.getElementById('memoStatus').value;
@@ -333,24 +351,71 @@
 
             if(!clientCode) { alert('請選擇客戶'); return; }
 
-            const newMemo = {
-                id: Date.now(),
-                clientCode,
-                content,
-                status,
-                feedback,
-                date: new Date().toISOString()
-            };
+            try {
+                btn.textContent = '保存中...';
+                btn.disabled = true;
 
-            memos.push(newMemo);
-            localStorage.setItem('memos', JSON.stringify(memos));
+                await addDoc(collection(db, "memos"), {
+                    clientCode,
+                    content,
+                    status,
+                    feedback,
+                    timestamp: serverTimestamp() // 使用伺服器時間，解決跨時區問題
+                });
 
-            closeModal('memoModal');
-            renderDashboard();
+                window.closeModal('memoModal');
+                document.getElementById('memoForm').reset();
+                document.getElementById('selectedClientDisplay').classList.add('hidden');
+            } catch (error) {
+                console.error("Error adding memo: ", error);
+                alert("保存失敗");
+            } finally {
+                btn.textContent = '保存至雲端';
+                btn.disabled = false;
+            }
+        }
 
-            // Reset form
-            document.getElementById('memoForm').reset();
-            document.getElementById('selectedClientDisplay').classList.add('hidden');
+        // --- UI 工具 ---
+        
+        // 綁定搜尋事件
+        document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
+        document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
+
+        window.toggleView = function(viewName) {
+            const dashboard = document.getElementById('dashboardView');
+            const manager = document.getElementById('clientManagerView');
+            
+            if (viewName === 'clientManager') {
+                dashboard.classList.add('hidden');
+                manager.classList.remove('hidden');
+            } else {
+                manager.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+            }
+        }
+
+        window.updateMemoClientDisplay = function() {
+            const select = document.getElementById('memoClientSelect');
+            const display = document.getElementById('selectedClientDisplay');
+            const codeSpan = document.getElementById('displayClientCode');
+            const nameSpan = document.getElementById('displayClientName');
+            
+            const client = clientsData.find(c => c.code === select.value);
+            if (client) {
+                display.classList.remove('hidden');
+                codeSpan.innerText = client.code;
+                nameSpan.innerText = client.name;
+            }
+        }
+
+        window.openMemoModal = function() {
+            document.getElementById('memoModal').classList.remove('opacity-0', 'pointer-events-none');
+        }
+        window.openClientModal = function() {
+            document.getElementById('clientModal').classList.remove('opacity-0', 'pointer-events-none');
+        }
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('opacity-0', 'pointer-events-none');
         }
 
     </script>
