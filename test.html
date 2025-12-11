@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【測試環境】公司備忘錄系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #fff7ed; } /* 背景微黃 */
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
+        .login-bg { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); } /* 橘色登入背景 */
+        .badge-admin { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-operator { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+        .status-border-pending { border-left: 5px solid #f97316; } 
+        .status-border-processing { border-left: 5px solid #3b82f6; } 
+        .status-border-completed { border-left: 5px solid #22c55e; } 
+    </style>
+</head>
+<body>
+
+    <input type="file" id="restoreInput" accept=".xlsx, .xls, .json" class="hidden" onchange="window.handleRestoreFile(this)">
+
+    <div id="loginScreen" class="fixed inset-0 z-[100] login-bg flex items-center justify-center">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-96 text-center border-4 border-orange-500">
+            <div class="mb-6"><i class="fas fa-flask text-orange-600 text-5xl"></i></div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">測試環境</h2>
+            <p class="text-gray-500 mb-8 text-sm">此為沙盒環境，資料不會影響正式站</p>
+            <button onclick="window.loginWithGoogle()" class="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-bold py-3 px-4 rounded flex items-center justify-center transition shadow-sm group">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5 mr-3">
+                <span id="loginBtnText">使用 Google 帳號登入</span>
+            </button>
+            <p id="loginMsg" class="mt-4 text-red-500 text-sm font-bold min-h-[20px]"></p>
+        </div>
+    </div>
+
+    <div id="mainApp" class="hidden">
+        <nav class="bg-orange-600 shadow-lg p-4 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-bold text-white flex items-center">
+                    <i class="fas fa-flask mr-2"></i>測試環境 (Test Mode)
+                </h1>
+                <div class="text-white text-sm flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-orange-700 px-3 py-1 rounded-full">
+                        <img id="userAvatar" src="" class="w-6 h-6 rounded-full border border-orange-300">
+                        <span id="userName" class="font-medium">User</span>
+                    </div>
+                    
+                    <div id="adminControls" class="hidden items-center gap-2">
+                        <div class="relative group">
+                            <button class="bg-white text-orange-700 hover:bg-orange-50 border border-transparent px-3 py-1 rounded text-xs font-bold flex items-center shadow">
+                                <i class="fas fa-database mr-1"></i> 測試資料庫 <i class="fas fa-chevron-down ml-1"></i>
+                            </button>
+                            <div class="absolute right-0 mt-0 w-56 bg-white rounded-md shadow-lg border border-gray-200 hidden group-hover:block z-50 text-gray-700">
+                                <div class="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">測試還原功能</div>
+                                <a href="#" onclick="document.getElementById('restoreInput').click()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                    <i class="fas fa-upload mr-2"></i> 還原備份到測試區
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="window.logout()" class="text-white hover:text-orange-200 text-xs border border-orange-400 px-2 py-1 rounded">登出</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto p-6">
+            <div id="dashboardView">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h2 class="text-3xl font-bold text-gray-800">測試資料列表</h2>
+                    <div class="flex gap-2">
+                        <button onclick="window.openMemoModal()" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition flex items-center shadow-md">
+                            <i class="fas fa-plus mr-2"></i> 新增測試資料
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-col md:flex-row gap-4 border border-orange-200">
+                    <div class="relative flex-grow">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="searchInput" placeholder="搜尋測試資料..." class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded focus:outline-none focus:border-orange-500">
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 text-gray-600">排序方式:</span>
+                        <select id="sortSelect" class="border border-gray-200 rounded px-3 py-2 focus:outline-none bg-white">
+                            <option value="code">客戶編號</option>
+                            <option value="pending">未處理優先</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="clientCardContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    </div>
+            </div>
+
+            <div id="clientDetailView" class="hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-4">
+                        <button onclick="window.closeClientDetail()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 w-10 h-10 rounded-full flex items-center justify-center transition">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800" id="detailClientName">客戶名稱</h2>
+                            <p class="text-sm text-gray-500 font-mono" id="detailClientCode">代號</p>
+                        </div>
+                    </div>
+                    <button onclick="window.openMemoModal(null, true)" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition shadow-sm">
+                        <i class="fas fa-plus mr-2"></i> 新增紀錄
+                    </button>
+                </div>
+                <div id="memoListContainer" class="space-y-4 max-w-4xl mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="memoModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto max-h-screen border-t-4 border-orange-500">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3">
+                    <p class="text-2xl font-bold" id="memoModalTitle">新增測試備忘錄</p>
+                    <div class="cursor-pointer z-50" onclick="window.closeModal('memoModal')"><i class="fas fa-times text-gray-500"></i></div>
+                </div>
+                <form id="memoForm" onsubmit="event.preventDefault(); window.saveMemo()">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">選擇客戶</label>
+                        <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-orange-50" required onchange="window.updateMemoClientDisplay()"></select>
+                    </div>
+                    <div id="selectedClientDisplay" class="mb-4 p-3 bg-orange-50 text-orange-800 rounded border border-orange-100 hidden">已選擇: <span id="displayClientCode"></span> - <span id="displayClientName"></span></div>
+                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label><textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="測試內容..." required></textarea></div>
+                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label><select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select></div>
+                    <div class="mb-4 bg-gray-50 p-3 rounded border border-gray-200"><label class="block text-gray-700 text-sm font-bold mb-2"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆</label><textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-20" placeholder="測試回覆..."></textarea></div>
+                    <div class="flex justify-end pt-2"><button type="submit" id="saveMemoBtn" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition">保存到測試區</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // Firebase Config (同正式站)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvo1Q_O9Mxp-N3bbUQlTppXxc_h5Ame-E",
+            authDomain: "notes-8be76.firebaseapp.com",
+            projectId: "notes-8be76",
+            storageBucket: "notes-8be76.firebasestorage.app",
+            messagingSenderId: "1036855189662",
+            appId: "1:1036855189662:web:4863ff65f63ab00a995b8f",
+            measurementId: "G-KMB6Q7VK8Z"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // [重要修改] 使用測試集合名稱
+        const COLLECTION_CLIENTS = "test_clients";
+        const COLLECTION_MEMOS = "test_memos";
+
+        let clientsData = [];
+        let memosData = [];
+        let editingMemoId = null;
+        let currentUserRole = "operator";
+
+        // --- 登入 ---
+        onAuthStateChanged(auth, async (user) => {
+            const loginScreen = document.getElementById('loginScreen');
+            const mainApp = document.getElementById('mainApp');
+            if (user) {
+                try {
+                    // 白名單檢查仍使用正式的 'whitelist' 集合 (確保管理員是同一人)
+                    const whitelistSnap = await getDoc(doc(db, "whitelist", user.email));
+                    if (whitelistSnap.exists()) {
+                        const userData = whitelistSnap.data();
+                        currentUserRole = userData.role || 'operator';
+                        
+                        document.getElementById('userName').innerText = userData.name || user.email;
+                        document.getElementById('userAvatar').src = user.photoURL;
+                        
+                        if(currentUserRole === 'admin') {
+                            document.getElementById('adminControls').classList.remove('hidden');
+                            document.getElementById('adminControls').classList.add('flex');
+                        }
+
+                        loginScreen.classList.add('hidden');
+                        loginScreen.classList.remove('flex'); 
+                        mainApp.classList.remove('hidden');
+                        startListeners();
+                    } else { throw new Error("無權限"); }
+                } catch (e) {
+                    alert("登入失敗：非白名單成員");
+                    signOut(auth);
+                }
+            } else {
+                loginScreen.classList.remove('hidden');
+                loginScreen.classList.add('flex');
+                mainApp.classList.add('hidden');
+            }
+        });
+
+        window.loginWithGoogle = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
+        window.logout = () => signOut(auth).then(() => location.reload());
+
+        // --- 監聽 (連到測試集合) ---
+        function startListeners() {
+            const qClients = query(collection(db, COLLECTION_CLIENTS), orderBy("code"));
+            onSnapshot(qClients, (snap) => {
+                clientsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+            });
+            const qMemos = query(collection(db, COLLECTION_MEMOS), orderBy("timestamp", "desc"));
+            onSnapshot(qMemos, (snap) => {
+                memosData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+            });
+        }
+
+        function renderAll() {
+            window.renderDashboard();
+            window.renderClientSelect();
+            const detailView = document.getElementById('clientDetailView');
+            if (!detailView.classList.contains('hidden')) {
+                const currentCode = document.getElementById('detailClientCode').innerText;
+                window.openClientDetail(currentCode);
+            }
+        }
+
+        // --- Dashboard 渲染 ---
+        window.renderDashboard = function() {
+            const container = document.getElementById('clientCardContainer');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const sortMode = document.getElementById('sortSelect').value;
+            container.innerHTML = '';
+            
+            const clientStats = clientsData.map(client => {
+                if (!client.name.toLowerCase().includes(search) && !client.code.toLowerCase().includes(search)) return null;
+                const clientMemos = memosData.filter(m => m.clientCode === client.code);
+                return {
+                    ...client,
+                    pendingCount: clientMemos.filter(m => m.status === 'pending').length,
+                    processingCount: clientMemos.filter(m => m.status === 'processing').length,
+                    completedCount: clientMemos.filter(m => m.status === 'completed').length
+                };
+            }).filter(c => c !== null);
+
+            clientStats.sort((a, b) => {
+                if (sortMode === 'pending') {
+                    const aHas = a.pendingCount > 0; const bHas = b.pendingCount > 0;
+                    if (aHas && !bHas) return -1; if (!aHas && bHas) return 1;
+                }
+                return a.code.localeCompare(b.code);
+            });
+
+            clientStats.forEach(client => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition cursor-pointer group relative overflow-hidden";
+                card.onclick = () => window.openClientDetail(client.code);
+                card.innerHTML = `
+                    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-flask text-6xl text-orange-500"></i></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-orange-600 transition">${client.name}</h3>
+                            <span class="bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded font-mono">${client.code}</span>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mt-4">
+                        <div class="flex justify-between items-center text-sm"><span class="text-gray-500">未完成</span><span class="font-bold ${client.pendingCount > 0 ? 'text-orange-600' : 'text-gray-400'}">${client.pendingCount}</span></div>
+                        <div class="flex justify-between items-center text-sm"><span class="text-gray-500">處理中</span><span class="font-bold ${client.processingCount > 0 ? 'text-blue-600' : 'text-gray-400'}">${client.processingCount}</span></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            if(container.innerHTML === '') container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">目前沒有測試資料，請按右上角還原資料來測試。</div>`;
+        }
+
+        // --- Client Detail ---
+        window.openClientDetail = function(code) {
+            const client = clientsData.find(c => c.code === code);
+            if (!client) return;
+            document.getElementById('detailClientName').innerText = client.name;
+            document.getElementById('detailClientCode').innerText = client.code;
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('clientDetailView').classList.remove('hidden');
+            const container = document.getElementById('memoListContainer');
+            container.innerHTML = '';
+            const clientMemos = memosData.filter(m => m.clientCode === code);
+            
+            clientMemos.forEach(memo => {
+                // (渲染邏輯同正式站，略為簡化)
+                const card = document.createElement('div');
+                let borderClass = memo.status === 'completed' ? 'status-border-completed' : (memo.status === 'processing' ? 'status-border-processing' : 'status-border-pending');
+                card.className = `bg-white p-5 rounded-lg shadow-sm border border-gray-100 ${borderClass} relative`;
+                card.innerHTML = `
+                    <button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 p-2"><i class="fas fa-pen"></i></button>
+                    <div class="text-gray-800 text-lg mb-2 whitespace-pre-wrap">${memo.content}</div>
+                    ${memo.feedback ? `<div class="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">回覆: ${memo.feedback}</div>` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+        window.closeClientDetail = function() {
+            document.getElementById('clientDetailView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+        }
+
+        // --- Modal & Edit ---
+        window.openMemoModal = function(memoData = null, lock = false) {
+            const modal = document.getElementById('memoModal');
+            const select = document.getElementById('memoClientSelect');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            if(memoData) {
+                editingMemoId = memoData.id;
+                select.value = memoData.clientCode;
+                document.getElementById('memoContent').value = memoData.content;
+                document.getElementById('memoStatus').value = memoData.status;
+                document.getElementById('memoFeedback').value = memoData.feedback || '';
+                select.disabled = true;
+            } else {
+                editingMemoId = null;
+                document.getElementById('memoForm').reset();
+                select.disabled = false;
+                if(lock) {
+                    select.value = document.getElementById('detailClientCode').innerText;
+                    select.disabled = true;
+                }
+            }
+            window.updateMemoClientDisplay();
+        }
+        window.editMemo = (id) => { const m = memosData.find(x => x.id === id); if(m) window.openMemoModal(m); }
+        window.closeModal = (id) => document.getElementById(id).classList.add('opacity-0', 'pointer-events-none');
+        window.updateMemoClientDisplay = () => {
+            const select = document.getElementById('memoClientSelect');
+            const client = clientsData.find(c => c.code === select.value);
+            if(client) {
+                document.getElementById('selectedClientDisplay').classList.remove('hidden');
+                document.getElementById('displayClientCode').innerText = client.code;
+                document.getElementById('displayClientName').innerText = client.name;
+            }
+        }
+        window.renderClientSelect = () => {
+            const select = document.getElementById('memoClientSelect');
+            select.innerHTML = '<option value="" disabled selected>請選擇客戶</option>';
+            clientsData.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.text = `${c.code} - ${c.name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        // --- [修改] 存檔到測試集合 ---
+        window.saveMemo = async function() {
+            const clientCode = document.getElementById('memoClientSelect').value;
+            const content = document.getElementById('memoContent').value;
+            const status = document.getElementById('memoStatus').value;
+            const feedback = document.getElementById('memoFeedback').value;
+            if(!clientCode) return alert('請選擇客戶');
+            
+            try {
+                if (editingMemoId) {
+                    await updateDoc(doc(db, COLLECTION_MEMOS, editingMemoId), { content, status, feedback });
+                } else {
+                    await addDoc(collection(db, COLLECTION_MEMOS), { clientCode, content, status, feedback, timestamp: serverTimestamp() });
+                }
+                window.closeModal('memoModal');
+            } catch(e) { alert("測試資料保存失敗"); }
+        }
+
+        // --- [修改] 還原到測試集合 ---
+        window.handleRestoreFile = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if(!confirm("⚠️ 警告：即將清空【測試區】資料並匯入。\n(正式資料不會受影響)")) { input.value = ''; return; }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, {type: 'array'});
+                try {
+                    const clientSheet = wb.Sheets["客戶資料"];
+                    const memoSheet = wb.Sheets["備忘錄"];
+                    if (!clientSheet || !memoSheet) throw new Error("格式錯誤：找不到分頁");
+                    const newClients = XLSX.utils.sheet_to_json(clientSheet);
+                    const newMemos = XLSX.utils.sheet_to_json(memoSheet);
+
+                    // 1. 清空測試集合
+                    const batchDel = writeBatch(db);
+                    const snapC = await getDocs(collection(db, COLLECTION_CLIENTS));
+                    snapC.forEach(d => batchDel.delete(d.ref));
+                    const snapM = await getDocs(collection(db, COLLECTION_MEMOS));
+                    snapM.forEach(d => batchDel.delete(d.ref));
+                    await batchDel.commit();
+
+                    // 2. 寫入客戶到測試區
+                    for (const c of newClients) {
+                        if(c.code) await setDoc(doc(db, COLLECTION_CLIENTS, String(c.code)), { code: String(c.code), name: String(c.name), timestamp: serverTimestamp() });
+                    }
+                    // 3. 寫入備忘錄到測試區
+                    for (const m of newMemos) {
+                        let ts = serverTimestamp();
+                        if (m.timestamp) ts = Timestamp.fromDate(new Date(m.timestamp));
+                        await addDoc(collection(db, COLLECTION_MEMOS), { 
+                            clientCode: String(m.clientCode), content: m.content||"", status: m.status||"pending", feedback: m.feedback||"", timestamp: ts 
+                        });
+                    }
+                    alert("測試資料還原成功！");
+                } catch (err) { alert("失敗: " + err.message); }
+            };
+            // 簡單判斷副檔名
+            if (file.name.endsWith('.json')) {
+                // 如果是 json 就需要另外寫邏輯，這裡簡化假設只測試 Excel 還原
+                alert("測試環境目前僅示範 Excel 還原");
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+            input.value = '';
+        }
+
+        // --- UI ---
+        document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
+        document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
+    </script>
+</body>
+</html>
