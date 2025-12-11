@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (UI 美化版)</title>
+    <title>公司備忘錄系統 (簡潔列表版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -527,40 +527,23 @@
         }
         window.deleteClient = async function(id) { if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");} }
 
-        // --- [美化] Client Manager 渲染 ---
+        // --- [修改] Client Manager 渲染 (無大頭貼版) ---
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
             clientsData.forEach((client) => {
                 const tr = document.createElement('tr');
                 tr.className = "group border-b border-gray-100 hover:bg-blue-50 transition duration-150";
-                
-                // 大頭貼 (取名字第一個字)
-                const avatarChar = client.name ? client.name.charAt(0) : '?';
                 const createdDate = client.createdAt ? new Date(client.createdAt.seconds * 1000).toLocaleDateString() : '未知';
-
                 tr.innerHTML = `
                     <td class="p-5 pl-8">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-sm">
-                                ${avatarChar}
-                            </div>
-                            <div>
-                                <p class="font-bold text-gray-800 text-lg">${client.name}</p>
-                                <p class="text-xs text-gray-400">建立日期: ${createdDate}</p>
-                            </div>
+                        <div class="flex flex-col">
+                            <p class="font-bold text-gray-800 text-lg">${client.name}</p>
+                            <p class="text-xs text-gray-400">建立日期: ${createdDate}</p>
                         </div>
                     </td>
-                    <td class="p-5">
-                        <span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1 rounded-md font-mono text-sm font-bold shadow-sm">
-                            ${client.code}
-                        </span>
-                    </td>
-                    <td class="p-5 pr-8 text-right">
-                        <button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 flex items-center justify-center ml-auto" title="刪除客戶">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </td>
+                    <td class="p-5"><span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1 rounded-md font-mono text-sm font-bold shadow-sm">${client.code}</span></td>
+                    <td class="p-5 pr-8 text-right"><button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 flex items-center justify-center ml-auto"><i class="fas fa-trash-alt"></i></button></td>
                 `;
                 tbody.appendChild(tr);
             });
