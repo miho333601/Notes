@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (最終完整版)</title>
+    <title>公司備忘錄系統 (備註升級版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -179,9 +179,27 @@
                         <select id="memoClientSelect" class="w-full border border-gray-300 rounded px-3 py-2 bg-blue-50" required onchange="window.updateMemoClientDisplay()"></select>
                     </div>
                     <div id="selectedClientDisplay" class="mb-4 p-3 bg-blue-50 text-blue-800 rounded border border-blue-100 hidden">已選擇: <span id="displayClientCode"></span> - <span id="displayClientName"></span></div>
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label><textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea></div>
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label><select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select></div>
-                    <div class="mb-4 bg-gray-50 p-3 rounded border border-gray-200"><label class="block text-gray-700 text-sm font-bold mb-2"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆</label><textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-20" placeholder="記錄客戶的回覆內容..."></textarea></div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容 (主旨)</label>
+                        <textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="例如：提醒繳交文件..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label>
+                        <select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 gap-4 mb-4">
+                        <div class="bg-blue-50 p-3 rounded border border-blue-100">
+                            <label class="block text-blue-800 text-sm font-bold mb-2"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆</label>
+                            <textarea id="memoFeedback" class="w-full border border-blue-200 rounded px-3 py-2 h-16 bg-white focus:ring-1 focus:ring-blue-300 outline-none" placeholder="客戶說..."></textarea>
+                        </div>
+                        <div class="bg-yellow-50 p-3 rounded border border-yellow-100">
+                            <label class="block text-yellow-800 text-sm font-bold mb-2"><i class="fas fa-sticky-note mr-1"></i> 內部備註 (細項)</label>
+                            <textarea id="memoRemark" class="w-full border border-yellow-200 rounded px-3 py-2 h-16 bg-white focus:ring-1 focus:ring-yellow-300 outline-none" placeholder="公司內部註記..."></textarea>
+                        </div>
+                    </div>
                     
                     <div class="flex justify-between pt-2">
                         <button type="button" id="deleteMemoBtn" onclick="window.deleteMemo()" class="hidden bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded font-bold transition">
@@ -198,7 +216,7 @@
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50">
             <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3"><p class="text-xl font-bold" id="clientModalTitle">新增客戶</p><div class="cursor-pointer" onclick="window.closeModal('clientModal')"><i class="fas fa-times"></i></div></div>
+                <div class="flex justify-between items-center pb-3"><p class="text-xl font-bold" id="clientModalTitle">新增客戶</p><div class="cursor-pointer" onclick="window.closeModal('clientModal')"><i class="fas fa-times text-gray-500"></i></div></div>
                 <form onsubmit="event.preventDefault(); window.saveClient()">
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">客戶代號 (ID)</label><input id="newClientCode" type="text" class="w-full border border-gray-300 rounded px-3 py-2 outline-none" placeholder="例如: C002" required></div>
                     <div class="mb-6"><label class="block text-gray-700 text-sm font-bold mb-2">客戶名稱</label><input id="newClientName" type="text" class="w-full border border-gray-300 rounded px-3 py-2 outline-none" placeholder="例如: XYZ 公司" required></div>
@@ -406,10 +424,12 @@
             else { titleText = "已完成事項"; colorClass = "text-green-300"; }
             header.className = `font-bold mb-2 border-b border-gray-600 pb-2 text-base ${colorClass}`;
             header.innerText = `${titleText} (${targetMemos.length})`;
+            
             content.innerHTML = targetMemos.slice(0, 5).map(m => {
                 let dateStr = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleDateString() : '';
                 return `<div class="flex gap-2 items-start"><span class="text-gray-500 whitespace-nowrap font-mono text-xs mt-0.5">${dateStr}</span><span class="line-clamp-2">${m.content}</span></div>`;
             }).join('');
+            
             if(targetMemos.length > 5) content.innerHTML += `<div class="text-center text-gray-500 italic mt-1">...還有 ${targetMemos.length - 5} 筆</div>`;
             tooltip.classList.remove('hidden');
             const x = event.clientX + 15; const y = event.clientY + 15;
@@ -419,6 +439,7 @@
         }
         window.hidePreview = () => document.getElementById('quickPreviewTooltip').classList.add('hidden');
 
+        // --- [修改] Detail Render Logic ---
         window.openClientDetail = function(code) {
             const client = clientsData.find(c => c.code === code); if (!client) return;
             document.getElementById('detailClientName').innerText = client.name;
@@ -437,10 +458,29 @@
                     case 'processing': statusText = "處理中"; statusClass = "status-border-processing"; icon="fa-sync text-blue-500"; break;
                     default: statusText = "尚未完成"; statusClass = "status-border-pending"; icon="fa-circle text-orange-500"; break;
                 }
-                const feedbackHtml = memo.feedback ? `<div class="mt-3 bg-gray-50 p-3 rounded text-sm border border-gray-100"><div class="font-bold text-gray-600 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div><div class="text-gray-800">${memo.feedback}</div></div>` : `<div class="mt-3 text-xs text-gray-400 italic">尚無回覆</div>`;
+                
+                // 客戶回覆 (藍色)
+                const feedbackHtml = memo.feedback 
+                    ? `<div class="mt-3 bg-blue-50 p-3 rounded text-sm border border-blue-100"><div class="font-bold text-blue-800 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div><div class="text-gray-800">${memo.feedback}</div></div>` 
+                    : ``;
+
+                // 內部備註 (黃色) - 如果有備註才顯示
+                const remarkHtml = memo.remark
+                    ? `<div class="mt-3 bg-yellow-50 p-3 rounded text-sm border border-yellow-100"><div class="font-bold text-yellow-800 mb-1"><i class="fas fa-sticky-note mr-1"></i> 內部備註：</div><div class="text-gray-800">${memo.remark}</div></div>`
+                    : ``;
+
                 const card = document.createElement('div');
                 card.className = `bg-white p-5 rounded-lg shadow-sm border border-gray-100 ${statusClass} hover:shadow-md transition relative`;
-                card.innerHTML = `<button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition p-2 bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-pen text-sm"></i></button><div class="flex justify-between items-start mb-2 pr-10"><span class="text-xs text-gray-400 font-mono">${timeStr}</span><div class="flex items-center gap-1 text-sm font-bold text-gray-700"><i class="fas ${icon} text-xs"></i> ${statusText}</div></div><div class="text-gray-800 text-lg mb-2 whitespace-pre-wrap">${memo.content}</div>${feedbackHtml}`;
+                card.innerHTML = `
+                    <button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition p-2 bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-pen text-sm"></i></button>
+                    <div class="flex justify-between items-start mb-2 pr-10">
+                        <span class="text-xs text-gray-400 font-mono">${timeStr}</span>
+                        <div class="flex items-center gap-1 text-sm font-bold text-gray-700"><i class="fas ${icon} text-xs"></i> ${statusText}</div>
+                    </div>
+                    <div class="text-gray-800 text-lg mb-2 whitespace-pre-wrap">${memo.content}</div>
+                    ${feedbackHtml}
+                    ${remarkHtml}
+                `;
                 container.appendChild(card);
             });
         }
@@ -449,11 +489,12 @@
             document.getElementById('dashboardView').classList.remove('hidden');
         }
 
+        // --- [修改] Modal & Edit ---
         window.openMemoModal = function(memoData = null, lock = false) {
             const modal = document.getElementById('memoModal');
             modal.classList.remove('opacity-0', 'pointer-events-none');
             const select = document.getElementById('memoClientSelect');
-            const deleteBtn = document.getElementById('deleteMemoBtn'); // [新增]
+            const deleteBtn = document.getElementById('deleteMemoBtn');
             
             if(memoData) {
                 editingMemoId = memoData.id;
@@ -463,15 +504,18 @@
                 document.getElementById('memoContent').value = memoData.content;
                 document.getElementById('memoStatus').value = memoData.status;
                 document.getElementById('memoFeedback').value = memoData.feedback || '';
+                // [新增] 填入備註
+                document.getElementById('memoRemark').value = memoData.remark || '';
+                
                 select.disabled = true;
-                deleteBtn.classList.remove('hidden'); // 編輯模式顯示刪除
+                deleteBtn.classList.remove('hidden');
             } else {
                 editingMemoId = null;
                 document.getElementById('memoModalTitle').innerText = "新增備忘錄";
                 document.getElementById('saveMemoBtn').innerText = "保存";
                 document.getElementById('memoForm').reset();
                 select.disabled = false;
-                deleteBtn.classList.add('hidden'); // 新增模式隱藏刪除
+                deleteBtn.classList.add('hidden');
                 if(lock) { select.value = document.getElementById('detailClientCode').innerText; select.disabled = true; }
             }
             window.updateMemoClientDisplay();
@@ -489,45 +533,41 @@
             document.getElementById('clientDetailView').classList.add('hidden');
         }
 
+        // --- [修改] Save Logic (包含 remark) ---
         window.saveMemo = async function() {
             const clientCode = document.getElementById('memoClientSelect').value;
             const content = document.getElementById('memoContent').value;
             const status = document.getElementById('memoStatus').value;
             const feedback = document.getElementById('memoFeedback').value;
+            // [新增] 取得備註
+            const remark = document.getElementById('memoRemark').value;
+
             if(!clientCode) return alert('請選擇客戶');
             const btn = document.getElementById('saveMemoBtn'); btn.disabled=true;
             try {
                 if(editingMemoId) {
-                    await updateDoc(doc(db, "memos", editingMemoId), { content, status, feedback });
+                    // 更新時加入 remark
+                    await updateDoc(doc(db, "memos", editingMemoId), { content, status, feedback, remark });
                     await logAction("更新備忘錄", `客戶:${clientCode}, 狀態:${status}`);
                 } else {
-                    await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() });
+                    // 新增時加入 remark
+                    await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, remark, timestamp: serverTimestamp() });
                     await logAction("新增備忘錄", `客戶:${clientCode}`);
                 }
                 window.closeModal('memoModal');
             } catch(e) { console.error(e); alert("失敗"); } finally { btn.disabled=false; }
         }
 
-        // [新增] 刪除備忘錄函式
+        // [刪除功能]
         window.deleteMemo = async function() {
             if(!editingMemoId) return;
             if(!confirm('確定要刪除這條備忘錄嗎？\n此動作無法復原！')) return;
-            
-            const btn = document.getElementById('deleteMemoBtn');
-            btn.disabled = true;
-            btn.innerText = "刪除中...";
-
+            const btn = document.getElementById('deleteMemoBtn'); btn.disabled = true; btn.innerText = "刪除中...";
             try {
                 await deleteDoc(doc(db, "memos", editingMemoId));
                 await logAction("刪除備忘錄", `ID:${editingMemoId}`);
                 window.closeModal('memoModal');
-            } catch(e) {
-                console.error(e);
-                alert("刪除失敗");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> 刪除';
-            }
+            } catch(e) { console.error(e); alert("刪除失敗"); } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> 刪除'; }
         }
 
         window.openClientModal = function(data = null) {
@@ -654,10 +694,19 @@
                 window.openEmployeeModal(); 
             } catch(e) { alert("失敗"); } 
         }
+
+        // --- [修改] Backup Logic (加入 remark) ---
         window.backupToExcel = function() {
             if (currentUserRole !== 'admin') return alert('權限不足');
             try {
-                const memoRows = memosData.map(m => ({ clientCode: m.clientCode, content: m.content, status: m.status, feedback: m.feedback || "", timestamp: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toISOString() : new Date().toISOString() }));
+                const memoRows = memosData.map(m => ({ 
+                    clientCode: m.clientCode, 
+                    content: m.content, 
+                    status: m.status, 
+                    feedback: m.feedback || "", 
+                    remark: m.remark || "", // [新增]
+                    timestamp: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toISOString() : new Date().toISOString() 
+                }));
                 const clientRows = clientsData.map(c => ({ code: c.code, name: c.name }));
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), "客戶資料");
@@ -677,6 +726,8 @@
                 logAction("系統備份", "匯出 JSON");
             } catch (e) { console.error(e); alert("匯出失敗"); }
         }
+
+        // --- [修改] Restore Logic (處理 remark) ---
         window.handleRestoreFile = function(input) {
             const file = input.files[0]; if (!file) return;
             if(!confirm("⚠️ 警告：這將會【清空現有資料】並匯入新內容。\n確定要執行還原嗎？")) { input.value = ''; return; }
@@ -707,7 +758,15 @@
                 let ts = serverTimestamp();
                 const timeVal = m.timestampISO || m.timestamp;
                 if (timeVal) ts = Timestamp.fromDate(new Date(timeVal));
-                await addDoc(collection(db, "memos"), { clientCode: String(m.clientCode), content: m.content||"", status: m.status||"pending", feedback: m.feedback||"", timestamp: ts });
+                // [新增] 寫入 remark
+                await addDoc(collection(db, "memos"), { 
+                    clientCode: String(m.clientCode), 
+                    content: m.content||"", 
+                    status: m.status||"pending", 
+                    feedback: m.feedback||"", 
+                    remark: m.remark||"", 
+                    timestamp: ts 
+                });
             }
             await logAction("系統還原", `還原 ${newClients.length} 客戶, ${newMemos.length} 備忘錄`);
             alert("還原成功！"); window.location.reload();
