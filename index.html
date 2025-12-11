@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (簡潔列表版)</title>
+    <title>公司備忘錄系統 (客戶編輯版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -128,24 +128,17 @@
                 <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                     <div class="bg-gray-50 p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div class="flex items-center gap-3">
-                            <div class="bg-blue-100 p-3 rounded-full text-blue-600">
-                                <i class="fas fa-address-book text-xl"></i>
-                            </div>
+                            <div class="bg-blue-100 p-3 rounded-full text-blue-600"><i class="fas fa-address-book text-xl"></i></div>
                             <div>
                                 <h3 class="text-2xl font-bold text-gray-800">客戶資料管理</h3>
                                 <p class="text-sm text-gray-500">管理系統中的所有客戶名單</p>
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="window.toggleView('dashboard')" class="bg-white text-gray-600 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm font-bold flex items-center">
-                                <i class="fas fa-arrow-left mr-2"></i> 返回列表
-                            </button>
-                            <button onclick="window.openClientModal()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition shadow-md font-bold flex items-center">
-                                <i class="fas fa-plus mr-2"></i> 新增客戶
-                            </button>
+                            <button onclick="window.toggleView('dashboard')" class="bg-white text-gray-600 border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 transition shadow-sm font-bold flex items-center"><i class="fas fa-arrow-left mr-2"></i> 返回列表</button>
+                            <button onclick="window.openClientModal()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition shadow-md font-bold flex items-center"><i class="fas fa-plus mr-2"></i> 新增客戶</button>
                         </div>
                     </div>
-
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead>
@@ -155,8 +148,7 @@
                                     <th class="p-5 text-right pr-8">操作</th>
                                 </tr>
                             </thead>
-                            <tbody id="manageClientTableBody" class="divide-y divide-gray-100">
-                                </tbody>
+                            <tbody id="manageClientTableBody" class="divide-y divide-gray-100"></tbody>
                         </table>
                     </div>
                 </div>
@@ -191,11 +183,17 @@
         <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50">
             <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3"><p class="text-xl font-bold">新增客戶</p><div class="cursor-pointer" onclick="window.closeModal('clientModal')"><i class="fas fa-times"></i></div></div>
+                <div class="flex justify-between items-center pb-3">
+                    <p class="text-xl font-bold" id="clientModalTitle">新增客戶</p>
+                    <div class="cursor-pointer" onclick="window.closeModal('clientModal')"><i class="fas fa-times"></i></div>
+                </div>
                 <form onsubmit="event.preventDefault(); window.saveClient()">
-                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">客戶代號</label><input id="newClientCode" type="text" class="w-full border border-gray-300 rounded px-3 py-2 outline-none" placeholder="例如: C002" required></div>
+                    <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">客戶代號 (ID)</label><input id="newClientCode" type="text" class="w-full border border-gray-300 rounded px-3 py-2 outline-none" placeholder="例如: C002" required></div>
                     <div class="mb-6"><label class="block text-gray-700 text-sm font-bold mb-2">客戶名稱</label><input id="newClientName" type="text" class="w-full border border-gray-300 rounded px-3 py-2 outline-none" placeholder="例如: XYZ 公司" required></div>
-                    <div class="flex justify-end gap-2"><button type="button" onclick="window.closeModal('clientModal')" class="bg-white border text-gray-700 px-4 py-2 rounded">取消</button><button type="submit" id="saveClientBtn" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button></div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="window.closeModal('clientModal')" class="bg-white border text-gray-700 px-4 py-2 rounded">取消</button>
+                        <button type="submit" id="saveClientBtn" class="bg-blue-600 text-white px-4 py-2 rounded">新增</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -247,6 +245,8 @@
         let currentUserEmail = "";
         let currentUserRole = "operator";
         let editingMemoId = null;
+        // [新增] 記錄正在編輯的客戶 ID
+        let editingClientCode = null;
 
         // --- 登入邏輯 ---
         onAuthStateChanged(auth, async (user) => {
@@ -338,7 +338,7 @@
             }
         }
 
-        // --- Dashboard 渲染 (智慧排序) ---
+        // --- Dashboard 渲染 ---
         window.renderDashboard = function() {
             const container = document.getElementById('clientCardContainer');
             const search = document.getElementById('searchInput').value.toLowerCase();
@@ -443,7 +443,7 @@
             document.getElementById('dashboardView').classList.remove('hidden');
         }
 
-        // --- Modal & Edit ---
+        // --- Modal & Edit (Memo) ---
         window.openMemoModal = function(memoData = null, lockCurrentClient = false) {
             const modal = document.getElementById('memoModal');
             const form = document.getElementById('memoForm');
@@ -497,7 +497,45 @@
                 document.getElementById('displayClientName').innerText = client.name;
             }
         };
-        window.openClientModal = () => document.getElementById('clientModal').classList.remove('opacity-0', 'pointer-events-none');
+        
+        // --- [新增] 客戶編輯與新增 Modal 控制 ---
+        window.openClientModal = function(clientData = null) {
+            const modal = document.getElementById('clientModal');
+            const codeInput = document.getElementById('newClientCode');
+            const nameInput = document.getElementById('newClientName');
+            const title = document.getElementById('clientModalTitle');
+            const btn = document.getElementById('saveClientBtn');
+
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            // 清空舊狀態
+            codeInput.value = '';
+            nameInput.value = '';
+            codeInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+            codeInput.disabled = false;
+
+            if (clientData) {
+                // 修改模式
+                editingClientCode = clientData.code;
+                title.innerText = "編輯客戶資料";
+                btn.innerText = "儲存修改";
+                codeInput.value = clientData.code;
+                nameInput.value = clientData.name;
+                // 鎖定代號
+                codeInput.disabled = true;
+                codeInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+            } else {
+                // 新增模式
+                editingClientCode = null;
+                title.innerText = "新增客戶";
+                btn.innerText = "新增";
+            }
+        }
+        // 供按鈕呼叫的編輯函式
+        window.editClient = function(code) {
+            const client = clientsData.find(c => c.code === code);
+            if (client) window.openClientModal(client);
+        }
+
         window.closeModal = (id) => document.getElementById(id).classList.add('opacity-0', 'pointer-events-none');
 
         // --- Save Logic ---
@@ -519,15 +557,45 @@
                 window.closeModal('memoModal'); 
             } catch(e) { console.error(e); alert("保存失敗"); } finally { btn.disabled = false; }
         }
+        
+        // --- [修改] 客戶儲存邏輯 (支援 Update) ---
         window.saveClient = async function() {
             const code = document.getElementById('newClientCode').value.trim();
             const name = document.getElementById('newClientName').value.trim();
             if(!code || !name) return;
-            try { await setDoc(doc(db, "clients", code), { code, name, createdAt: serverTimestamp(), latestMemoDate: new Date('2000-01-01') }); window.closeModal('clientModal'); document.getElementById('newClientCode').value=''; document.getElementById('newClientName').value=''; } catch(e){alert("新增失敗");}
+            
+            const btn = document.getElementById('saveClientBtn');
+            btn.disabled = true; btn.innerText = "處理中...";
+
+            try {
+                if (editingClientCode) {
+                    // 修改模式：只更新名稱
+                    await updateDoc(doc(db, "clients", editingClientCode), { name: name });
+                } else {
+                    // 新增模式：檢查是否重複
+                    const clientRef = doc(db, "clients", code);
+                    const snap = await getDoc(clientRef);
+                    if (snap.exists()) {
+                        alert("客戶代號已存在！");
+                        btn.disabled = false;
+                        btn.innerText = "新增";
+                        return;
+                    }
+                    await setDoc(clientRef, { code, name, createdAt: serverTimestamp(), latestMemoDate: new Date('2000-01-01') });
+                }
+                window.closeModal('clientModal'); 
+            } catch(e) { 
+                console.error(e); 
+                alert("儲存失敗"); 
+            } finally { 
+                btn.disabled = false; 
+                // 還原按鈕文字
+                if(!editingClientCode) btn.innerText = "新增";
+            }
         }
         window.deleteClient = async function(id) { if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");} }
 
-        // --- [修改] Client Manager 渲染 (無大頭貼版) ---
+        // --- Client Manager 渲染 (含編輯按鈕) ---
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
@@ -543,7 +611,14 @@
                         </div>
                     </td>
                     <td class="p-5"><span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1 rounded-md font-mono text-sm font-bold shadow-sm">${client.code}</span></td>
-                    <td class="p-5 pr-8 text-right"><button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 flex items-center justify-center ml-auto"><i class="fas fa-trash-alt"></i></button></td>
+                    <td class="p-5 pr-8 text-right space-x-2">
+                        <button onclick="window.editClient('${client.code}')" class="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center" title="編輯客戶">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center" title="刪除客戶">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
