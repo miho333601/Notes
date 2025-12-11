@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (護眼優化版)</title>
+    <title>公司備忘錄系統 (最終完整版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -182,7 +182,13 @@
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">備忘事項內容</label><textarea id="memoContent" class="w-full border border-gray-300 rounded px-3 py-2 h-24" placeholder="內容" required></textarea></div>
                     <div class="mb-4"><label class="block text-gray-700 text-sm font-bold mb-2">進度狀態</label><select id="memoStatus" class="w-full border border-gray-300 rounded px-3 py-2"><option value="pending">○ 尚未完成</option><option value="processing">⟳ 處理中</option><option value="completed">✓ 已完成</option></select></div>
                     <div class="mb-4 bg-gray-50 p-3 rounded border border-gray-200"><label class="block text-gray-700 text-sm font-bold mb-2"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆</label><textarea id="memoFeedback" class="w-full border border-gray-300 rounded px-3 py-2 h-20" placeholder="記錄客戶的回覆內容..."></textarea></div>
-                    <div class="flex justify-end pt-2"><button type="submit" id="saveMemoBtn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition">保存</button></div>
+                    
+                    <div class="flex justify-between pt-2">
+                        <button type="button" id="deleteMemoBtn" onclick="window.deleteMemo()" class="hidden bg-red-50 text-red-600 hover:bg-red-100 px-4 py-2 rounded font-bold transition">
+                            <i class="fas fa-trash-alt mr-1"></i> 刪除
+                        </button>
+                        <button type="submit" id="saveMemoBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-6 rounded transition ml-auto">保存</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -400,13 +406,10 @@
             else { titleText = "已完成事項"; colorClass = "text-green-300"; }
             header.className = `font-bold mb-2 border-b border-gray-600 pb-2 text-base ${colorClass}`;
             header.innerText = `${titleText} (${targetMemos.length})`;
-            
-            // [修改] 預覽內容的字體也改為 text-xs (之前是 text-[10px])
             content.innerHTML = targetMemos.slice(0, 5).map(m => {
                 let dateStr = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleDateString() : '';
                 return `<div class="flex gap-2 items-start"><span class="text-gray-500 whitespace-nowrap font-mono text-xs mt-0.5">${dateStr}</span><span class="line-clamp-2">${m.content}</span></div>`;
             }).join('');
-            
             if(targetMemos.length > 5) content.innerHTML += `<div class="text-center text-gray-500 italic mt-1">...還有 ${targetMemos.length - 5} 筆</div>`;
             tooltip.classList.remove('hidden');
             const x = event.clientX + 15; const y = event.clientY + 15;
@@ -450,6 +453,8 @@
             const modal = document.getElementById('memoModal');
             modal.classList.remove('opacity-0', 'pointer-events-none');
             const select = document.getElementById('memoClientSelect');
+            const deleteBtn = document.getElementById('deleteMemoBtn'); // [新增]
+            
             if(memoData) {
                 editingMemoId = memoData.id;
                 document.getElementById('memoModalTitle').innerText = "編輯備忘錄";
@@ -459,12 +464,14 @@
                 document.getElementById('memoStatus').value = memoData.status;
                 document.getElementById('memoFeedback').value = memoData.feedback || '';
                 select.disabled = true;
+                deleteBtn.classList.remove('hidden'); // 編輯模式顯示刪除
             } else {
                 editingMemoId = null;
                 document.getElementById('memoModalTitle').innerText = "新增備忘錄";
                 document.getElementById('saveMemoBtn').innerText = "保存";
                 document.getElementById('memoForm').reset();
                 select.disabled = false;
+                deleteBtn.classList.add('hidden'); // 新增模式隱藏刪除
                 if(lock) { select.value = document.getElementById('detailClientCode').innerText; select.disabled = true; }
             }
             window.updateMemoClientDisplay();
@@ -499,6 +506,28 @@
                 }
                 window.closeModal('memoModal');
             } catch(e) { console.error(e); alert("失敗"); } finally { btn.disabled=false; }
+        }
+
+        // [新增] 刪除備忘錄函式
+        window.deleteMemo = async function() {
+            if(!editingMemoId) return;
+            if(!confirm('確定要刪除這條備忘錄嗎？\n此動作無法復原！')) return;
+            
+            const btn = document.getElementById('deleteMemoBtn');
+            btn.disabled = true;
+            btn.innerText = "刪除中...";
+
+            try {
+                await deleteDoc(doc(db, "memos", editingMemoId));
+                await logAction("刪除備忘錄", `ID:${editingMemoId}`);
+                window.closeModal('memoModal');
+            } catch(e) {
+                console.error(e);
+                alert("刪除失敗");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash-alt mr-1"></i> 刪除';
+            }
         }
 
         window.openClientModal = function(data = null) {
