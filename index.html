@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (雙模式備份版)</title>
+    <title>公司備忘錄系統 (智慧排序版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -53,28 +53,20 @@
                         <button onclick="window.openEmployeeModal()" class="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-3 py-1 rounded text-xs font-bold flex items-center">
                             <i class="fas fa-users-cog mr-1"></i> 權限
                         </button>
-                        
                         <div class="relative group">
                             <button class="bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 px-3 py-1 rounded text-xs font-bold flex items-center">
                                 <i class="fas fa-database mr-1"></i> 資料庫 <i class="fas fa-chevron-down ml-1"></i>
                             </button>
                             <div class="absolute right-0 mt-0 w-56 bg-white rounded-md shadow-lg border border-gray-200 hidden group-hover:block z-50">
                                 <div class="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">備份 (匯出)</div>
-                                <a href="#" onclick="window.backupToExcel()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
-                                    <i class="fas fa-file-excel mr-2 text-green-600"></i> 下載 Excel 檔 (推薦)
-                                </a>
-                                <a href="#" onclick="window.backupToJson()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700">
-                                    <i class="fas fa-file-code mr-2 text-blue-600"></i> 下載 JSON 檔 (完整)
-                                </a>
+                                <a href="#" onclick="window.backupToExcel()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-excel mr-2 text-green-600"></i> 下載 Excel 檔 (推薦)</a>
+                                <a href="#" onclick="window.backupToJson()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-code mr-2 text-blue-600"></i> 下載 JSON 檔 (完整)</a>
                                 <div class="border-t border-gray-100 my-1"></div>
                                 <div class="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">還原 (匯入)</div>
-                                <a href="#" onclick="document.getElementById('restoreInput').click()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                                    <i class="fas fa-upload mr-2"></i> 還原資料 (Excel/JSON)
-                                </a>
+                                <a href="#" onclick="document.getElementById('restoreInput').click()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fas fa-upload mr-2"></i> 還原資料 (Excel/JSON)</a>
                             </div>
                         </div>
                     </div>
-                    
                     <button onclick="window.logout()" class="text-gray-500 hover:text-gray-700 text-xs border border-gray-200 px-2 py-1 rounded">登出</button>
                 </div>
             </div>
@@ -97,9 +89,11 @@
                     </div>
                     <div class="flex items-center">
                         <span class="mr-2 text-gray-600">排序方式:</span>
-                        <select id="sortSelect" class="border border-gray-200 rounded px-3 py-2 focus:outline-none">
-                            <option value="default">最新更新</option>
-                            <option value="name">客戶名稱</option>
+                        <select id="sortSelect" class="border border-gray-200 rounded px-3 py-2 focus:outline-none bg-white">
+                            <option value="code">客戶編號 (預設)</option>
+                            <option value="pending" class="text-orange-600 font-bold">⚠ 未處理優先</option>
+                            <option value="processing" class="text-blue-600 font-bold">⟳ 處理中優先</option>
+                            <option value="completed" class="text-green-600 font-bold">✓ 已完成優先</option>
                         </select>
                     </div>
                 </div>
@@ -322,24 +316,54 @@
             }
         }
 
-        // --- Dashboard (Card View) ---
+        // --- [修改] Dashboard 渲染 (含智慧排序) ---
         window.renderDashboard = function() {
             const container = document.getElementById('clientCardContainer');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const sortMode = document.getElementById('sortSelect').value;
             container.innerHTML = '';
             
-            let displayClients = [...clientsData];
-            if (sortMode === 'name') displayClients.sort((a, b) => a.name.localeCompare(b.name));
+            // 1. 預先計算每個客戶的統計數據，以便排序
+            const clientStats = clientsData.map(client => {
+                // 如果有搜尋條件，先過濾
+                if (!client.name.toLowerCase().includes(search) && !client.code.toLowerCase().includes(search)) return null;
 
-            displayClients.forEach(client => {
-                if (!client.name.toLowerCase().includes(search) && !client.code.toLowerCase().includes(search)) return;
-                
                 const clientMemos = memosData.filter(m => m.clientCode === client.code);
-                const completed = clientMemos.filter(m => m.status === 'completed').length;
-                const processing = clientMemos.filter(m => m.status === 'processing').length;
-                const pending = clientMemos.filter(m => m.status === 'pending').length;
+                return {
+                    ...client,
+                    pendingCount: clientMemos.filter(m => m.status === 'pending').length,
+                    processingCount: clientMemos.filter(m => m.status === 'processing').length,
+                    completedCount: clientMemos.filter(m => m.status === 'completed').length
+                };
+            }).filter(c => c !== null); // 移除被搜尋過濾掉的
 
+            // 2. 執行排序邏輯
+            clientStats.sort((a, b) => {
+                // 優先權比較
+                if (sortMode === 'pending') {
+                    // 有未處理的排前面
+                    const aHas = a.pendingCount > 0;
+                    const bHas = b.pendingCount > 0;
+                    if (aHas && !bHas) return -1;
+                    if (!aHas && bHas) return 1;
+                } else if (sortMode === 'processing') {
+                    const aHas = a.processingCount > 0;
+                    const bHas = b.processingCount > 0;
+                    if (aHas && !bHas) return -1;
+                    if (!aHas && bHas) return 1;
+                } else if (sortMode === 'completed') {
+                    const aHas = a.completedCount > 0;
+                    const bHas = b.completedCount > 0;
+                    if (aHas && !bHas) return -1;
+                    if (!aHas && bHas) return 1;
+                }
+                
+                // 次級排序：永遠照客戶代號 (A-Z)
+                return a.code.localeCompare(b.code);
+            });
+
+            // 3. 渲染卡片
+            clientStats.forEach(client => {
                 const card = document.createElement('div');
                 card.className = "bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition cursor-pointer group relative overflow-hidden";
                 card.onclick = () => window.openClientDetail(client.code);
@@ -357,15 +381,15 @@
                     <div class="space-y-2 mt-4">
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-500"><i class="far fa-circle text-orange-500 mr-2"></i>未完成</span>
-                            <span class="font-bold text-gray-700">${pending}</span>
+                            <span class="font-bold ${client.pendingCount > 0 ? 'text-orange-600' : 'text-gray-400'}">${client.pendingCount}</span>
                         </div>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-500"><i class="fas fa-sync text-blue-500 mr-2"></i>處理中</span>
-                            <span class="font-bold text-gray-700">${processing}</span>
+                            <span class="font-bold ${client.processingCount > 0 ? 'text-blue-600' : 'text-gray-400'}">${client.processingCount}</span>
                         </div>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-500"><i class="fas fa-check text-green-500 mr-2"></i>已完成</span>
-                            <span class="font-bold text-gray-700">${completed}</span>
+                            <span class="font-bold ${client.completedCount > 0 ? 'text-green-600' : 'text-gray-400'}">${client.completedCount}</span>
                         </div>
                     </div>
                 `;
@@ -373,9 +397,7 @@
             });
 
             if (container.innerHTML === '') {
-                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">
-                    <i class="fas fa-inbox text-4xl mb-3"></i><p>查無客戶資料</p>
-                </div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-inbox text-4xl mb-3"></i><p>查無客戶資料</p></div>`;
             }
         }
 
@@ -513,7 +535,7 @@
         }
         window.deleteClient = async function(id) { if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");} }
 
-        // --- Employee ---
+        // --- Employee & Backup ---
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
@@ -566,9 +588,7 @@
         }
         window.deleteEmployee = async function(email) { if(confirm(`確定要移除 ${email}?`)) try { await deleteDoc(doc(db, "whitelist", email)); window.openEmployeeModal(); } catch(e) { alert("失敗"); } }
 
-        // ================= [雙模式備份/還原] =================
-        
-        // 1. 備份為 Excel
+        // --- Backup & Restore ---
         window.backupToExcel = function() {
             if (currentUserRole !== 'admin') return alert('權限不足');
             try {
@@ -589,23 +609,16 @@
                 XLSX.writeFile(wb, `backup_excel_${dateStr}.xlsx`);
             } catch (e) { console.error(e); alert("匯出失敗"); }
         }
-
-        // 2. 備份為 JSON
         window.backupToJson = function() {
             if (currentUserRole !== 'admin') return alert('權限不足');
             try {
-                // 將 Timestamp 轉字串
                 const safeMemos = memosData.map(m => {
                     const obj = { ...m };
                     if(obj.timestamp && obj.timestamp.toDate) obj.timestampISO = obj.timestamp.toDate().toISOString();
-                    delete obj.timestamp; // 移除原始物件，避免循環引用或不可序列化
+                    delete obj.timestamp; 
                     return obj;
                 });
-                const payload = {
-                    version: "1.0",
-                    exportedAt: new Date().toISOString(),
-                    data: { clients: clientsData, memos: safeMemos }
-                };
+                const payload = { version: "1.0", exportedAt: new Date().toISOString(), data: { clients: clientsData, memos: safeMemos } };
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload));
                 const dlNode = document.createElement('a');
                 dlNode.setAttribute("href", dataStr);
@@ -613,18 +626,12 @@
                 document.body.appendChild(dlNode); dlNode.click(); dlNode.remove();
             } catch (e) { console.error(e); alert("匯出失敗"); }
         }
-
-        // 3. 智慧還原 (自動偵測格式)
         window.handleRestoreFile = function(input) {
             const file = input.files[0];
             if (!file) return;
             if(!confirm("⚠️ 警告：這將會【清空現有資料】並匯入新內容。\n確定要執行還原嗎？")) { input.value = ''; return; }
-
             const reader = new FileReader();
-            
-            // --- 分流處理 ---
             if (file.name.endsWith('.json')) {
-                // JSON 處理模式
                 reader.onload = async function(e) {
                     try {
                         const json = JSON.parse(e.target.result);
@@ -633,9 +640,7 @@
                     } catch (err) { alert("還原失敗 (JSON): " + err.message); }
                 };
                 reader.readAsText(file);
-
             } else {
-                // Excel 處理模式
                 reader.onload = async function(e) {
                     const data = new Uint8Array(e.target.result);
                     const wb = XLSX.read(data, {type: 'array'});
@@ -652,21 +657,15 @@
             }
             input.value = '';
         }
-
-        // 共用還原執行函式
         async function performRestore(newClients, newMemos) {
-            // 1. 清空舊資料
             const qC = query(collection(db, "clients"));
             const snapC = await getDocs(qC);
             const batchDel = writeBatch(db);
             snapC.forEach(d => batchDel.delete(d.ref));
-            
             const qM = query(collection(db, "memos"));
             const snapM = await getDocs(qM);
             snapM.forEach(d => batchDel.delete(d.ref));
             await batchDel.commit();
-
-            // 2. 寫入客戶
             for (const c of newClients) {
                 if(c.code && c.name) {
                     await setDoc(doc(db, "clients", String(c.code)), {
@@ -677,14 +676,10 @@
                     });
                 }
             }
-
-            // 3. 寫入備忘錄
             for (const m of newMemos) {
                 let ts = serverTimestamp();
-                // 判斷來源是 JSON (timestampISO) 還是 Excel (timestamp 字串)
                 const timeVal = m.timestampISO || m.timestamp;
                 if (timeVal) ts = Timestamp.fromDate(new Date(timeVal));
-                
                 await addDoc(collection(db, "memos"), {
                     clientCode: String(m.clientCode),
                     content: m.content || "",
@@ -697,6 +692,9 @@
             window.location.reload();
         }
 
+        // --- UI Events ---
+        document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
+        document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
     </script>
 </body>
 </html>
