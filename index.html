@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (懸停預覽版)</title>
+    <title>公司備忘錄系統 (旗艦版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -17,13 +17,7 @@
         .status-border-pending { border-left: 5px solid #f97316; } 
         .status-border-processing { border-left: 5px solid #3b82f6; } 
         .status-border-completed { border-left: 5px solid #22c55e; } 
-        
-        /* [新增] 預覽視窗樣式 */
-        #quickPreviewTooltip {
-            transition: opacity 0.2s;
-            pointer-events: none; /* 讓滑鼠點擊可以穿透 */
-            backdrop-filter: blur(4px);
-        }
+        #quickPreviewTooltip { transition: opacity 0.2s; pointer-events: none; backdrop-filter: blur(4px); }
     </style>
 </head>
 <body>
@@ -62,6 +56,10 @@
                     </div>
                     
                     <div id="adminControls" class="hidden items-center gap-2">
+                        <button onclick="window.openLogModal()" class="bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300 px-3 py-1 rounded text-xs font-bold flex items-center" title="操作日誌">
+                            <i class="fas fa-history mr-1"></i> 日誌
+                        </button>
+
                         <button onclick="window.openEmployeeModal()" class="bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-3 py-1 rounded text-xs font-bold flex items-center">
                             <i class="fas fa-users-cog mr-1"></i> 權限
                         </button>
@@ -71,11 +69,11 @@
                             </button>
                             <div class="absolute right-0 mt-0 w-56 bg-white rounded-md shadow-lg border border-gray-200 hidden group-hover:block z-50">
                                 <div class="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">備份 (匯出)</div>
-                                <a href="#" onclick="window.backupToExcel()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-excel mr-2 text-green-600"></i> 下載 Excel 檔 (推薦)</a>
-                                <a href="#" onclick="window.backupToJson()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-code mr-2 text-blue-600"></i> 下載 JSON 檔 (完整)</a>
+                                <a href="#" onclick="window.backupToExcel()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-excel mr-2 text-green-600"></i> 下載 Excel 檔</a>
+                                <a href="#" onclick="window.backupToJson()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"><i class="fas fa-file-code mr-2 text-blue-600"></i> 下載 JSON 檔</a>
                                 <div class="border-t border-gray-100 my-1"></div>
                                 <div class="px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 border-b">還原 (匯入)</div>
-                                <a href="#" onclick="document.getElementById('restoreInput').click()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fas fa-upload mr-2"></i> 還原資料 (Excel/JSON)</a>
+                                <a href="#" onclick="document.getElementById('restoreInput').click()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50"><i class="fas fa-upload mr-2"></i> 還原資料</a>
                             </div>
                         </div>
                     </div>
@@ -114,8 +112,7 @@
                     </div>
                 </div>
 
-                <div id="clientCardContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    </div>
+                <div id="clientCardContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </div>
 
             <div id="clientDetailView" class="hidden">
@@ -224,9 +221,32 @@
         </div>
     </div>
 
+    <div id="logModal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-4xl mx-auto rounded shadow-lg z-50 h-[80vh] flex flex-col">
+            <div class="modal-content py-4 text-left px-6 border-b flex justify-between items-center">
+                <p class="text-xl font-bold text-gray-800"><i class="fas fa-history mr-2 text-gray-500"></i>系統操作日誌 (Audit Logs)</p>
+                <div class="cursor-pointer" onclick="window.closeModal('logModal')"><i class="fas fa-times text-gray-500"></i></div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-50" id="logContainer">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-200 text-gray-600 sticky top-0">
+                        <tr>
+                            <th class="p-3">時間</th>
+                            <th class="p-3">操作人員</th>
+                            <th class="p-3">動作</th>
+                            <th class="p-3">詳細內容</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody" class="bg-white"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, setDoc, updateDoc, writeBatch, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp, getDoc, getDocs, Timestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -253,73 +273,53 @@
         let editingMemoId = null;
         let editingClientCode = null;
 
+        // --- [新增] 日誌寫入函式 ---
+        async function logAction(action, details) {
+            try {
+                await addDoc(collection(db, "logs"), {
+                    action: action,
+                    details: details,
+                    user: currentUserEmail,
+                    timestamp: serverTimestamp()
+                });
+            } catch (e) { console.error("Log error", e); }
+        }
+
         // --- 登入邏輯 ---
         onAuthStateChanged(auth, async (user) => {
             const loginScreen = document.getElementById('loginScreen');
             const mainApp = document.getElementById('mainApp');
-            const loginMsg = document.getElementById('loginMsg');
-            const loginBtnText = document.getElementById('loginBtnText');
-
             if (user) {
-                loginBtnText.textContent = "驗證權限中...";
                 try {
                     const whitelistRef = doc(db, "whitelist", user.email);
                     const whitelistSnap = await getDoc(whitelistRef);
-
                     if (whitelistSnap.exists()) {
                         const userData = whitelistSnap.data();
                         currentUserEmail = user.email;
                         currentUserRole = userData.role || 'operator';
-
-                        loginScreen.classList.add('hidden');
-                        loginScreen.classList.remove('flex'); 
-                        mainApp.classList.remove('hidden');
-                        loginMsg.innerText = "";
-                        
+                        loginScreen.classList.add('hidden'); loginScreen.classList.remove('flex'); mainApp.classList.remove('hidden');
                         document.getElementById('userName').innerText = userData.name || user.email;
                         document.getElementById('userAvatar').src = user.photoURL;
-                        
                         const roleBadge = document.getElementById('userRoleBadge');
                         const adminControls = document.getElementById('adminControls');
-
                         if (currentUserRole === 'admin') {
                             roleBadge.innerText = "管理員";
                             roleBadge.className = "text-[10px] px-1 rounded badge-admin font-bold";
-                            adminControls.classList.remove('hidden'); 
-                            adminControls.classList.add('flex');
+                            adminControls.classList.remove('hidden'); adminControls.classList.add('flex');
                         } else {
                             roleBadge.innerText = "操作員";
                             roleBadge.className = "text-[10px] px-1 rounded badge-operator font-bold";
-                            adminControls.classList.add('hidden');
-                            adminControls.classList.remove('flex');
+                            adminControls.classList.add('hidden'); adminControls.classList.remove('flex');
                         }
                         startListeners();
                     } else { throw new Error("不在白名單內"); }
-                } catch (error) {
-                    console.warn("Access denied:", error);
-                    loginMsg.innerHTML = `<i class="fas fa-exclamation-circle mr-1"></i> 登入失敗：帳號無權限`;
-                    loginMsg.className = "mt-4 text-red-700 bg-red-100 p-3 rounded border border-red-200 text-sm font-bold block";
-                    loginBtnText.textContent = "使用 Google 帳號登入";
-                    await signOut(auth);
-                }
-            } else {
-                loginScreen.classList.remove('hidden');
-                loginScreen.classList.add('flex');
-                mainApp.classList.add('hidden');
-                loginBtnText.textContent = "使用 Google 帳號登入";
-            }
+                } catch (error) { alert("登入失敗：無權限"); signOut(auth); }
+            } else { loginScreen.classList.remove('hidden'); loginScreen.classList.add('flex'); mainApp.classList.add('hidden'); }
         });
 
-        window.loginWithGoogle = function() {
-            document.getElementById('loginMsg').innerText = "";
-            signInWithPopup(auth, provider).catch(error => {
-                if(error.code === 'auth/unauthorized-domain') { document.getElementById('loginMsg').innerText = "網域未授權 (Google Cloud API)"; } 
-                else { document.getElementById('loginMsg').innerText = "登入失敗"; }
-            });
-        }
-        window.logout = function() { if(confirm("確定要登出嗎?")) signOut(auth).then(() => location.reload()); }
+        window.loginWithGoogle = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
+        window.logout = () => signOut(auth).then(() => location.reload());
 
-        // --- 資料庫監聽 ---
         function startListeners() {
             const qClients = query(collection(db, "clients"), orderBy("code"));
             unsubscribeClients = onSnapshot(qClients, (snapshot) => {
@@ -343,7 +343,6 @@
             }
         }
 
-        // --- [修改] Dashboard 渲染 (含 Hover) ---
         window.renderDashboard = function() {
             const container = document.getElementById('clientCardContainer');
             const search = document.getElementById('searchInput').value.toLowerCase();
@@ -362,16 +361,9 @@
             }).filter(c => c !== null);
 
             clientStats.sort((a, b) => {
-                if (sortMode === 'pending') {
-                    const aHas = a.pendingCount > 0; const bHas = b.pendingCount > 0;
-                    if (aHas && !bHas) return -1; if (!aHas && bHas) return 1;
-                } else if (sortMode === 'processing') {
-                    const aHas = a.processingCount > 0; const bHas = b.processingCount > 0;
-                    if (aHas && !bHas) return -1; if (!aHas && bHas) return 1;
-                } else if (sortMode === 'completed') {
-                    const aHas = a.completedCount > 0; const bHas = b.completedCount > 0;
-                    if (aHas && !bHas) return -1; if (!aHas && bHas) return 1;
-                }
+                if (sortMode === 'pending') { const aH = a.pendingCount>0; const bH = b.pendingCount>0; if(aH!=bH) return aH?-1:1; }
+                else if (sortMode === 'processing') { const aH = a.processingCount>0; const bH = b.processingCount>0; if(aH!=bH) return aH?-1:1; }
+                else if (sortMode === 'completed') { const aH = a.completedCount>0; const bH = b.completedCount>0; if(aH!=bH) return aH?-1:1; }
                 return a.code.localeCompare(b.code);
             });
 
@@ -380,101 +372,51 @@
                 card.className = "bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition cursor-pointer group relative overflow-hidden";
                 card.onclick = () => window.openClientDetail(client.code);
                 
-                // [修改] 加入 onmouseenter/leave 觸發預覽
                 const pendingClass = client.pendingCount > 0 ? "text-orange-600 font-bold hover:bg-orange-50 cursor-help rounded px-1 transition" : "text-gray-400";
                 const processingClass = client.processingCount > 0 ? "text-blue-600 font-bold hover:bg-blue-50 cursor-help rounded px-1 transition" : "text-gray-400";
                 const completedClass = client.completedCount > 0 ? "text-green-600 font-bold hover:bg-green-50 cursor-help rounded px-1 transition" : "text-gray-400";
 
                 card.innerHTML = `
                     <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition"><i class="fas fa-folder text-6xl text-blue-500"></i></div>
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-blue-600 transition">${client.name}</h3>
-                            <span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded font-mono">${client.code}</span>
-                        </div>
-                    </div>
+                    <div class="flex justify-between items-start mb-4"><div><h3 class="text-xl font-bold text-gray-800 mb-1 group-hover:text-blue-600 transition">${client.name}</h3><span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded font-mono">${client.code}</span></div></div>
                     <div class="space-y-2 mt-4 relative">
-                        <div class="flex justify-between items-center text-sm" 
-                             onmouseenter="window.showPreview(event, '${client.code}', 'pending')" 
-                             onmouseleave="window.hidePreview()">
-                            <span class="text-gray-500"><i class="far fa-circle text-orange-500 mr-2"></i>未完成</span>
-                            <span class="${pendingClass}">${client.pendingCount}</span>
-                        </div>
-                        <div class="flex justify-between items-center text-sm"
-                             onmouseenter="window.showPreview(event, '${client.code}', 'processing')" 
-                             onmouseleave="window.hidePreview()">
-                            <span class="text-gray-500"><i class="fas fa-sync text-blue-500 mr-2"></i>處理中</span>
-                            <span class="${processingClass}">${client.processingCount}</span>
-                        </div>
-                        <div class="flex justify-between items-center text-sm"
-                             onmouseenter="window.showPreview(event, '${client.code}', 'completed')" 
-                             onmouseleave="window.hidePreview()">
-                            <span class="text-gray-500"><i class="fas fa-check text-green-500 mr-2"></i>已完成</span>
-                            <span class="${completedClass}">${client.completedCount}</span>
-                        </div>
+                        <div class="flex justify-between items-center text-sm" onmouseenter="window.showPreview(event, '${client.code}', 'pending')" onmouseleave="window.hidePreview()"><span class="text-gray-500"><i class="far fa-circle text-orange-500 mr-2"></i>未完成</span><span class="${pendingClass}">${client.pendingCount}</span></div>
+                        <div class="flex justify-between items-center text-sm" onmouseenter="window.showPreview(event, '${client.code}', 'processing')" onmouseleave="window.hidePreview()"><span class="text-gray-500"><i class="fas fa-sync text-blue-500 mr-2"></i>處理中</span><span class="${processingClass}">${client.processingCount}</span></div>
+                        <div class="flex justify-between items-center text-sm" onmouseenter="window.showPreview(event, '${client.code}', 'completed')" onmouseleave="window.hidePreview()"><span class="text-gray-500"><i class="fas fa-check text-green-500 mr-2"></i>已完成</span><span class="${completedClass}">${client.completedCount}</span></div>
                     </div>
                 `;
                 container.appendChild(card);
             });
-            if (container.innerHTML === '') container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-inbox text-4xl mb-3"></i><p>查無客戶資料</p></div>`;
+            if(container.innerHTML === '') container.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">查無資料</div>`;
         }
 
-        // --- [新增] 懸停預覽邏輯 ---
         window.showPreview = function(event, clientCode, status) {
-            // 只有當數量 > 0 時才顯示
             const targetMemos = memosData.filter(m => m.clientCode === clientCode && m.status === status);
             if (targetMemos.length === 0) return;
-
             const tooltip = document.getElementById('quickPreviewTooltip');
             const header = document.getElementById('tooltipHeader');
             const content = document.getElementById('tooltipContent');
-
-            // 標題文字與顏色
             let titleText = "", colorClass = "";
             if(status === 'pending') { titleText = "未完成事項"; colorClass = "text-orange-300"; }
             else if(status === 'processing') { titleText = "處理中事項"; colorClass = "text-blue-300"; }
             else { titleText = "已完成事項"; colorClass = "text-green-300"; }
-
             header.className = `font-bold mb-2 border-b border-gray-600 pb-1 ${colorClass}`;
             header.innerText = `${titleText} (${targetMemos.length})`;
-
-            // 內容生成 (最多顯示 5 筆)
             content.innerHTML = targetMemos.slice(0, 5).map(m => {
                 let dateStr = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleDateString() : '';
                 return `<div class="flex gap-2 items-start"><span class="text-gray-500 whitespace-nowrap font-mono text-[10px] mt-0.5">${dateStr}</span><span class="line-clamp-2">${m.content}</span></div>`;
             }).join('');
-            
-            if(targetMemos.length > 5) {
-                content.innerHTML += `<div class="text-center text-gray-500 italic mt-1">...還有 ${targetMemos.length - 5} 筆</div>`;
-            }
-
-            // 定位與顯示
+            if(targetMemos.length > 5) content.innerHTML += `<div class="text-center text-gray-500 italic mt-1">...還有 ${targetMemos.length - 5} 筆</div>`;
             tooltip.classList.remove('hidden');
-            
-            // 簡單定位：在滑鼠右下方
-            const x = event.clientX + 15;
-            const y = event.clientY + 15;
-            
-            // 邊界檢查 (防止超出螢幕)
+            const x = event.clientX + 15; const y = event.clientY + 15;
             const rect = tooltip.getBoundingClientRect();
-            let finalX = x;
-            let finalY = y;
-            
-            if (x + rect.width > window.innerWidth) finalX = event.clientX - rect.width - 10;
-            if (y + rect.height > window.innerHeight) finalY = event.clientY - rect.height - 10;
-
-            tooltip.style.left = finalX + 'px';
-            tooltip.style.top = finalY + 'px';
+            tooltip.style.left = (x + rect.width > window.innerWidth ? event.clientX - rect.width - 10 : x) + 'px';
+            tooltip.style.top = (y + rect.height > window.innerHeight ? event.clientY - rect.height - 10 : y) + 'px';
         }
+        window.hidePreview = () => document.getElementById('quickPreviewTooltip').classList.add('hidden');
 
-        window.hidePreview = function() {
-            document.getElementById('quickPreviewTooltip').classList.add('hidden');
-        }
-
-        // --- Client Detail View ---
         window.openClientDetail = function(code) {
-            const client = clientsData.find(c => c.code === code);
-            if (!client) return;
+            const client = clientsData.find(c => c.code === code); if (!client) return;
             document.getElementById('detailClientName').innerText = client.name;
             document.getElementById('detailClientCode').innerText = client.code;
             document.getElementById('dashboardView').classList.add('hidden');
@@ -483,36 +425,18 @@
             const container = document.getElementById('memoListContainer');
             container.innerHTML = '';
             const clientMemos = memosData.filter(m => m.clientCode === code);
-            if (clientMemos.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="far fa-folder-open text-4xl mb-2"></i><p>尚無備忘錄</p></div>`;
-                return;
-            }
             clientMemos.forEach(memo => {
-                let timeStr = "";
-                if (memo.timestamp) {
-                    const date = memo.timestamp.toDate ? memo.timestamp.toDate() : new Date(memo.timestamp);
-                    timeStr = date.toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' });
-                }
+                let timeStr = memo.timestamp ? (memo.timestamp.toDate ? memo.timestamp.toDate() : new Date(memo.timestamp)).toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
                 let statusText = "", statusClass = "", icon = "";
                 switch(memo.status) {
                     case 'completed': statusText = "已完成"; statusClass = "status-border-completed"; icon="fa-check text-green-500"; break;
                     case 'processing': statusText = "處理中"; statusClass = "status-border-processing"; icon="fa-sync text-blue-500"; break;
                     default: statusText = "尚未完成"; statusClass = "status-border-pending"; icon="fa-circle text-orange-500"; break;
                 }
-                const feedbackHtml = memo.feedback 
-                    ? `<div class="mt-3 bg-gray-50 p-3 rounded text-sm border border-gray-100"><div class="font-bold text-gray-600 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div><div class="text-gray-800">${memo.feedback}</div></div>` 
-                    : `<div class="mt-3 text-xs text-gray-400 italic">尚無回覆</div>`;
+                const feedbackHtml = memo.feedback ? `<div class="mt-3 bg-gray-50 p-3 rounded text-sm border border-gray-100"><div class="font-bold text-gray-600 mb-1"><i class="fas fa-comment-dots mr-1"></i> 客戶回覆：</div><div class="text-gray-800">${memo.feedback}</div></div>` : `<div class="mt-3 text-xs text-gray-400 italic">尚無回覆</div>`;
                 const card = document.createElement('div');
                 card.className = `bg-white p-5 rounded-lg shadow-sm border border-gray-100 ${statusClass} hover:shadow-md transition relative`;
-                card.innerHTML = `
-                    <button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition p-2 bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-pen text-sm"></i></button>
-                    <div class="flex justify-between items-start mb-2 pr-10">
-                        <span class="text-xs text-gray-400 font-mono">${timeStr}</span>
-                        <div class="flex items-center gap-1 text-sm font-bold text-gray-700"><i class="fas ${icon} text-xs"></i> ${statusText}</div>
-                    </div>
-                    <div class="text-gray-800 text-lg mb-2 whitespace-pre-wrap">${memo.content}</div>
-                    ${feedbackHtml}
-                `;
+                card.innerHTML = `<button onclick="window.editMemo('${memo.id}')" class="absolute top-4 right-4 text-gray-400 hover:text-blue-600 transition p-2 bg-gray-50 rounded-full w-8 h-8 flex items-center justify-center"><i class="fas fa-pen text-sm"></i></button><div class="flex justify-between items-start mb-2 pr-10"><span class="text-xs text-gray-400 font-mono">${timeStr}</span><div class="flex items-center gap-1 text-sm font-bold text-gray-700"><i class="fas ${icon} text-xs"></i> ${statusText}</div></div><div class="text-gray-800 text-lg mb-2 whitespace-pre-wrap">${memo.content}</div>${feedbackHtml}`;
                 container.appendChild(card);
             });
         }
@@ -521,137 +445,111 @@
             document.getElementById('dashboardView').classList.remove('hidden');
         }
 
-        // --- Modal & Edit (Memo) ---
-        window.openMemoModal = function(memoData = null, lockCurrentClient = false) {
+        window.openMemoModal = function(memoData = null, lock = false) {
             const modal = document.getElementById('memoModal');
-            const form = document.getElementById('memoForm');
-            const clientSelect = document.getElementById('memoClientSelect');
-            const btn = document.getElementById('saveMemoBtn');
-            const title = document.getElementById('memoModalTitle');
             modal.classList.remove('opacity-0', 'pointer-events-none');
-            
-            if (memoData) {
+            const select = document.getElementById('memoClientSelect');
+            if(memoData) {
                 editingMemoId = memoData.id;
-                title.innerText = "編輯備忘錄";
-                btn.innerText = "更新資料";
-                btn.className = "w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition";
-                clientSelect.value = memoData.clientCode;
+                document.getElementById('memoModalTitle').innerText = "編輯備忘錄";
+                document.getElementById('saveMemoBtn').innerText = "更新資料";
+                select.value = memoData.clientCode;
                 document.getElementById('memoContent').value = memoData.content;
                 document.getElementById('memoStatus').value = memoData.status;
                 document.getElementById('memoFeedback').value = memoData.feedback || '';
-                window.updateMemoClientDisplay();
-                clientSelect.disabled = true;
+                select.disabled = true;
             } else {
                 editingMemoId = null;
-                title.innerText = "新增備忘錄";
-                btn.innerText = "保存至雲端";
-                btn.className = "w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition";
-                form.reset();
-                clientSelect.disabled = false;
-                document.getElementById('selectedClientDisplay').classList.add('hidden');
-                if (lockCurrentClient) {
-                    const currentCode = document.getElementById('detailClientCode').innerText;
-                    clientSelect.value = currentCode;
-                    window.updateMemoClientDisplay();
-                    clientSelect.disabled = true;
-                }
+                document.getElementById('memoModalTitle').innerText = "新增備忘錄";
+                document.getElementById('saveMemoBtn').innerText = "保存";
+                document.getElementById('memoForm').reset();
+                select.disabled = false;
+                if(lock) { select.value = document.getElementById('detailClientCode').innerText; select.disabled = true; }
             }
+            window.updateMemoClientDisplay();
         }
-        window.editMemo = function(memoId) {
-            const memo = memosData.find(m => m.id === memoId);
-            if (memo) window.openMemoModal(memo);
-        }
-        window.toggleView = (view) => {
-            document.getElementById('dashboardView').classList.toggle('hidden', view !== 'dashboard');
-            document.getElementById('clientManagerView').classList.toggle('hidden', view !== 'clientManager');
-            document.getElementById('clientDetailView').classList.add('hidden');
-        };
-        window.updateMemoClientDisplay = () => {
-            const select = document.getElementById('memoClientSelect');
-            const client = clientsData.find(c => c.code === select.value);
-            if(client) {
-                document.getElementById('selectedClientDisplay').classList.remove('hidden');
-                document.getElementById('displayClientCode').innerText = client.code;
-                document.getElementById('displayClientName').innerText = client.name;
-            }
-        };
-        
-        // --- 客戶編輯與新增 Modal 控制 ---
-        window.openClientModal = function(clientData = null) {
-            const modal = document.getElementById('clientModal');
-            const codeInput = document.getElementById('newClientCode');
-            const nameInput = document.getElementById('newClientName');
-            const title = document.getElementById('clientModalTitle');
-            const btn = document.getElementById('saveClientBtn');
-
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            codeInput.value = '';
-            nameInput.value = '';
-            codeInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
-            codeInput.disabled = false;
-
-            if (clientData) {
-                editingClientCode = clientData.code;
-                title.innerText = "編輯客戶資料";
-                btn.innerText = "儲存修改";
-                codeInput.value = clientData.code;
-                nameInput.value = clientData.name;
-                codeInput.disabled = true;
-                codeInput.classList.add('bg-gray-100', 'cursor-not-allowed');
-            } else {
-                editingClientCode = null;
-                title.innerText = "新增客戶";
-                btn.innerText = "新增";
-            }
-        }
-        window.editClient = function(code) {
-            const client = clientsData.find(c => c.code === code);
-            if (client) window.openClientModal(client);
-        }
-
+        window.editMemo = (id) => { const m = memosData.find(x => x.id === id); if(m) window.openMemoModal(m); }
         window.closeModal = (id) => document.getElementById(id).classList.add('opacity-0', 'pointer-events-none');
+        window.updateMemoClientDisplay = () => {
+            const val = document.getElementById('memoClientSelect').value;
+            const c = clientsData.find(x => x.code === val);
+            if(c) { document.getElementById('selectedClientDisplay').classList.remove('hidden'); document.getElementById('displayClientCode').innerText = c.code; document.getElementById('displayClientName').innerText = c.name; }
+        }
+        window.toggleView = (v) => {
+            document.getElementById('dashboardView').classList.toggle('hidden', v!=='dashboard');
+            document.getElementById('clientManagerView').classList.toggle('hidden', v!=='clientManager');
+            document.getElementById('clientDetailView').classList.add('hidden');
+        }
 
-        // --- Save Logic ---
         window.saveMemo = async function() {
             const clientCode = document.getElementById('memoClientSelect').value;
             const content = document.getElementById('memoContent').value;
             const status = document.getElementById('memoStatus').value;
             const feedback = document.getElementById('memoFeedback').value;
-            if(!clientCode) { alert('請選擇客戶'); return; }
-            const btn = document.getElementById('saveMemoBtn');
-            btn.disabled = true; btn.innerText = "處理中...";
+            if(!clientCode) return alert('請選擇客戶');
+            const btn = document.getElementById('saveMemoBtn'); btn.disabled=true;
             try {
-                if (editingMemoId) {
-                    const memoRef = doc(db, "memos", editingMemoId);
-                    await updateDoc(memoRef, { content, status, feedback });
+                if(editingMemoId) {
+                    await updateDoc(doc(db, "memos", editingMemoId), { content, status, feedback });
+                    // [日誌]
+                    await logAction("更新備忘錄", `客戶:${clientCode}, 狀態:${status}`);
                 } else {
                     await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() });
+                    // [日誌]
+                    await logAction("新增備忘錄", `客戶:${clientCode}`);
                 }
-                window.closeModal('memoModal'); 
-            } catch(e) { console.error(e); alert("保存失敗"); } finally { btn.disabled = false; }
+                window.closeModal('memoModal');
+            } catch(e) { console.error(e); alert("失敗"); } finally { btn.disabled=false; }
         }
+
+        window.openClientModal = function(data = null) {
+            const modal = document.getElementById('clientModal'); modal.classList.remove('opacity-0', 'pointer-events-none');
+            const codeInput = document.getElementById('newClientCode');
+            const nameInput = document.getElementById('newClientName');
+            codeInput.value=''; nameInput.value=''; codeInput.disabled=false; codeInput.classList.remove('bg-gray-100','cursor-not-allowed');
+            if(data) {
+                editingClientCode = data.code;
+                document.getElementById('clientModalTitle').innerText = "編輯客戶";
+                document.getElementById('saveClientBtn').innerText = "儲存修改";
+                codeInput.value = data.code; nameInput.value = data.name;
+                codeInput.disabled=true; codeInput.classList.add('bg-gray-100','cursor-not-allowed');
+            } else {
+                editingClientCode = null;
+                document.getElementById('clientModalTitle').innerText = "新增客戶";
+                document.getElementById('saveClientBtn').innerText = "新增";
+            }
+        }
+        window.editClient = (code) => { const c = clientsData.find(x => x.code === code); if(c) window.openClientModal(c); }
         
         window.saveClient = async function() {
             const code = document.getElementById('newClientCode').value.trim();
             const name = document.getElementById('newClientName').value.trim();
             if(!code || !name) return;
-            const btn = document.getElementById('saveClientBtn');
-            btn.disabled = true; btn.innerText = "處理中...";
+            const btn = document.getElementById('saveClientBtn'); btn.disabled=true;
             try {
-                if (editingClientCode) {
-                    await updateDoc(doc(db, "clients", editingClientCode), { name: name });
+                if(editingClientCode) {
+                    await updateDoc(doc(db, "clients", editingClientCode), { name });
+                    await logAction("修改客戶", `代號:${code}, 新名稱:${name}`);
                 } else {
-                    const clientRef = doc(db, "clients", code);
-                    const snap = await getDoc(clientRef);
-                    if (snap.exists()) { alert("客戶代號已存在！"); btn.disabled = false; btn.innerText = "新增"; return; }
-                    await setDoc(clientRef, { code, name, createdAt: serverTimestamp(), latestMemoDate: new Date('2000-01-01') });
+                    const ref = doc(db, "clients", code);
+                    const snap = await getDoc(ref);
+                    if(snap.exists()) { alert("重複代號"); btn.disabled=false; return; }
+                    await setDoc(ref, { code, name, createdAt: serverTimestamp() });
+                    await logAction("新增客戶", `代號:${code}, 名稱:${name}`);
                 }
-                window.closeModal('clientModal'); 
-            } catch(e) { console.error(e); alert("儲存失敗"); } finally { btn.disabled = false; if(!editingClientCode) btn.innerText = "新增"; }
+                window.closeModal('clientModal');
+            } catch(e) { console.error(e); alert("失敗"); } finally { btn.disabled=false; }
         }
-        window.deleteClient = async function(id) { if(confirm('確定刪除?')) try{ await deleteDoc(doc(db, "clients", id)); }catch(e){alert("刪除失敗");} }
+        
+        window.deleteClient = async function(code) {
+            if(confirm('確定刪除?')) {
+                try {
+                    await deleteDoc(doc(db, "clients", code));
+                    await logAction("刪除客戶", `代號:${code}`);
+                } catch(e) { alert("刪除失敗"); }
+            }
+        }
 
-        // --- Client Manager 渲染 ---
         window.renderClientManager = function() {
             const tbody = document.getElementById('manageClientTableBody');
             tbody.innerHTML = '';
@@ -659,30 +557,38 @@
                 const tr = document.createElement('tr');
                 tr.className = "group border-b border-gray-100 hover:bg-blue-50 transition duration-150";
                 const createdDate = client.createdAt ? new Date(client.createdAt.seconds * 1000).toLocaleDateString() : '未知';
-                tr.innerHTML = `
-                    <td class="p-5 pl-8"><div class="flex flex-col"><p class="font-bold text-gray-800 text-lg">${client.name}</p><p class="text-xs text-gray-400">建立日期: ${createdDate}</p></div></td>
-                    <td class="p-5"><span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1 rounded-md font-mono text-sm font-bold shadow-sm">${client.code}</span></td>
-                    <td class="p-5 pr-8 text-right space-x-2">
-                        <button onclick="window.editClient('${client.code}')" class="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center"><i class="fas fa-pen"></i></button>
-                        <button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center"><i class="fas fa-trash-alt"></i></button>
-                    </td>
-                `;
+                tr.innerHTML = `<td class="p-5 pl-8"><div class="flex flex-col"><p class="font-bold text-gray-800 text-lg">${client.name}</p><p class="text-xs text-gray-400">建立日期: ${createdDate}</p></div></td><td class="p-5"><span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1 rounded-md font-mono text-sm font-bold shadow-sm">${client.code}</span></td><td class="p-5 pr-8 text-right space-x-2"><button onclick="window.editClient('${client.code}')" class="text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center"><i class="fas fa-pen"></i></button><button onclick="window.deleteClient('${client.code}')" class="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition w-10 h-10 inline-flex items-center justify-center"><i class="fas fa-trash-alt"></i></button></td>`;
                 tbody.appendChild(tr);
             });
         }
-
         window.renderClientSelect = function() {
             const select = document.getElementById('memoClientSelect');
-            const currentVal = select.value;
             select.innerHTML = '<option value="" disabled selected>請選擇客戶</option>';
-            clientsData.forEach(client => {
-                const option = document.createElement('option');
-                option.value = client.code;
-                option.text = `${client.code} - ${client.name}`;
-                select.appendChild(option);
-            });
-            if (currentVal) select.value = currentVal;
+            clientsData.forEach(c => { const opt = document.createElement('option'); opt.value=c.code; opt.text=`${c.code} - ${c.name}`; select.appendChild(opt); });
         }
+
+        // --- Log Viewer ---
+        window.openLogModal = async function() {
+            if(currentUserRole !== 'admin') return alert('權限不足');
+            document.getElementById('logModal').classList.remove('opacity-0', 'pointer-events-none');
+            const tbody = document.getElementById('logTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">載入中...</td></tr>';
+            try {
+                const q = query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(50));
+                const snap = await getDocs(q);
+                tbody.innerHTML = '';
+                snap.forEach(doc => {
+                    const log = doc.data();
+                    const time = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleString() : '';
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b hover:bg-gray-50";
+                    tr.innerHTML = `<td class="p-3 text-xs text-gray-500 font-mono">${time}</td><td class="p-3 text-sm font-bold">${log.user}</td><td class="p-3 text-sm"><span class="bg-gray-100 px-2 py-1 rounded">${log.action}</span></td><td class="p-3 text-sm text-gray-600">${log.details}</td>`;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">載入失敗</td></tr>'; }
+        }
+
+        // --- Backup / Restore / Employee (省略重複代碼，邏輯同前一版) ---
         window.openEmployeeModal = async function() {
             if (currentUserRole !== 'admin') { alert("權限不足"); return; }
             document.getElementById('employeeModal').classList.remove('opacity-0', 'pointer-events-none');
@@ -709,115 +615,79 @@
             const name = document.getElementById('empName').value.trim();
             const role = document.getElementById('empRole').value;
             if(!email || !name) return;
-            try { await setDoc(doc(db, "whitelist", email), { name, role, addedBy: currentUserEmail, timestamp: serverTimestamp() }); document.getElementById('empEmail').value=''; document.getElementById('empName').value=''; window.openEmployeeModal(); } catch(e) { alert("失敗：權限不足"); }
+            try { 
+                await setDoc(doc(db, "whitelist", email), { name, role, addedBy: currentUserEmail, timestamp: serverTimestamp() }); 
+                await logAction("新增員工", `Email:${email}, 角色:${role}`);
+                document.getElementById('empEmail').value=''; document.getElementById('empName').value=''; window.openEmployeeModal(); 
+            } catch(e) { alert("失敗：權限不足"); }
         }
-        window.deleteEmployee = async function(email) { if(confirm(`確定要移除 ${email}?`)) try { await deleteDoc(doc(db, "whitelist", email)); window.openEmployeeModal(); } catch(e) { alert("失敗"); } }
-
-        // --- Backup & Restore ---
+        window.deleteEmployee = async function(email) { 
+            if(confirm(`確定要移除 ${email}?`)) try { 
+                await deleteDoc(doc(db, "whitelist", email)); 
+                await logAction("刪除員工", `Email:${email}`);
+                window.openEmployeeModal(); 
+            } catch(e) { alert("失敗"); } 
+        }
         window.backupToExcel = function() {
             if (currentUserRole !== 'admin') return alert('權限不足');
             try {
-                const memoRows = memosData.map(m => ({
-                    clientCode: m.clientCode,
-                    content: m.content,
-                    status: m.status,
-                    feedback: m.feedback || "",
-                    timestamp: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toISOString() : new Date().toISOString()
-                }));
+                const memoRows = memosData.map(m => ({ clientCode: m.clientCode, content: m.content, status: m.status, feedback: m.feedback || "", timestamp: m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().toISOString() : new Date().toISOString() }));
                 const clientRows = clientsData.map(c => ({ code: c.code, name: c.name }));
                 const wb = XLSX.utils.book_new();
-                const wsClients = XLSX.utils.json_to_sheet(clientRows);
-                const wsMemos = XLSX.utils.json_to_sheet(memoRows);
-                XLSX.utils.book_append_sheet(wb, wsClients, "客戶資料");
-                XLSX.utils.book_append_sheet(wb, wsMemos, "備忘錄");
-                const dateStr = new Date().toISOString().slice(0,10);
-                XLSX.writeFile(wb, `backup_excel_${dateStr}.xlsx`);
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientRows), "客戶資料");
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(memoRows), "備忘錄");
+                XLSX.writeFile(wb, `backup_excel_${new Date().toISOString().slice(0,10)}.xlsx`);
+                logAction("系統備份", "匯出 Excel");
             } catch (e) { console.error(e); alert("匯出失敗"); }
         }
         window.backupToJson = function() {
             if (currentUserRole !== 'admin') return alert('權限不足');
             try {
-                const safeMemos = memosData.map(m => {
-                    const obj = { ...m };
-                    if(obj.timestamp && obj.timestamp.toDate) obj.timestampISO = obj.timestamp.toDate().toISOString();
-                    delete obj.timestamp; 
-                    return obj;
-                });
+                const safeMemos = memosData.map(m => { const obj = { ...m }; if(obj.timestamp && obj.timestamp.toDate) obj.timestampISO = obj.timestamp.toDate().toISOString(); delete obj.timestamp; return obj; });
                 const payload = { version: "1.0", exportedAt: new Date().toISOString(), data: { clients: clientsData, memos: safeMemos } };
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload));
-                const dlNode = document.createElement('a');
-                dlNode.setAttribute("href", dataStr);
-                dlNode.setAttribute("download", `backup_json_${new Date().toISOString().slice(0,10)}.json`);
+                const dlNode = document.createElement('a'); dlNode.setAttribute("href", dataStr); dlNode.setAttribute("download", `backup_json_${new Date().toISOString().slice(0,10)}.json`);
                 document.body.appendChild(dlNode); dlNode.click(); dlNode.remove();
+                logAction("系統備份", "匯出 JSON");
             } catch (e) { console.error(e); alert("匯出失敗"); }
         }
         window.handleRestoreFile = function(input) {
-            const file = input.files[0];
-            if (!file) return;
+            const file = input.files[0]; if (!file) return;
             if(!confirm("⚠️ 警告：這將會【清空現有資料】並匯入新內容。\n確定要執行還原嗎？")) { input.value = ''; return; }
             const reader = new FileReader();
             if (file.name.endsWith('.json')) {
                 reader.onload = async function(e) {
-                    try {
-                        const json = JSON.parse(e.target.result);
-                        if (!json.data || !json.data.clients || !json.data.memos) throw new Error("JSON 格式錯誤");
-                        await performRestore(json.data.clients, json.data.memos);
-                    } catch (err) { alert("還原失敗 (JSON): " + err.message); }
-                };
-                reader.readAsText(file);
+                    try { const json = JSON.parse(e.target.result); await performRestore(json.data.clients, json.data.memos); } catch (err) { alert("還原失敗 (JSON)"); }
+                }; reader.readAsText(file);
             } else {
                 reader.onload = async function(e) {
-                    const data = new Uint8Array(e.target.result);
-                    const wb = XLSX.read(data, {type: 'array'});
+                    const data = new Uint8Array(e.target.result); const wb = XLSX.read(data, {type: 'array'});
                     try {
-                        const clientSheet = wb.Sheets["客戶資料"];
-                        const memoSheet = wb.Sheets["備忘錄"];
-                        if (!clientSheet || !memoSheet) throw new Error("找不到 '客戶資料' 或 '備忘錄' 分頁");
-                        const newClients = XLSX.utils.sheet_to_json(clientSheet);
-                        const newMemos = XLSX.utils.sheet_to_json(memoSheet);
+                        const newClients = XLSX.utils.sheet_to_json(wb.Sheets["客戶資料"]);
+                        const newMemos = XLSX.utils.sheet_to_json(wb.Sheets["備忘錄"]);
                         await performRestore(newClients, newMemos);
-                    } catch (err) { alert("還原失敗 (Excel): " + err.message); }
-                };
-                reader.readAsArrayBuffer(file);
+                    } catch (err) { alert("還原失敗 (Excel)"); }
+                }; reader.readAsArrayBuffer(file);
             }
             input.value = '';
         }
         async function performRestore(newClients, newMemos) {
-            const qC = query(collection(db, "clients"));
-            const snapC = await getDocs(qC);
             const batchDel = writeBatch(db);
-            snapC.forEach(d => batchDel.delete(d.ref));
-            const qM = query(collection(db, "memos"));
-            const snapM = await getDocs(qM);
-            snapM.forEach(d => batchDel.delete(d.ref));
+            const snapC = await getDocs(collection(db, "clients")); snapC.forEach(d => batchDel.delete(d.ref));
+            const snapM = await getDocs(collection(db, "memos")); snapM.forEach(d => batchDel.delete(d.ref));
             await batchDel.commit();
-            for (const c of newClients) {
-                if(c.code && c.name) {
-                    await setDoc(doc(db, "clients", String(c.code)), {
-                        code: String(c.code),
-                        name: String(c.name),
-                        createdAt: serverTimestamp(),
-                        latestMemoDate: new Date('2000-01-01')
-                    });
-                }
-            }
+            for (const c of newClients) { if(c.code) await setDoc(doc(db, "clients", String(c.code)), { code: String(c.code), name: String(c.name), createdAt: serverTimestamp() }); }
             for (const m of newMemos) {
                 let ts = serverTimestamp();
                 const timeVal = m.timestampISO || m.timestamp;
                 if (timeVal) ts = Timestamp.fromDate(new Date(timeVal));
-                await addDoc(collection(db, "memos"), {
-                    clientCode: String(m.clientCode),
-                    content: m.content || "",
-                    status: m.status || "pending",
-                    feedback: m.feedback || "",
-                    timestamp: ts
-                });
+                await addDoc(collection(db, "memos"), { clientCode: String(m.clientCode), content: m.content||"", status: m.status||"pending", feedback: m.feedback||"", timestamp: ts });
             }
-            alert("還原成功！");
-            window.location.reload();
+            await logAction("系統還原", `還原 ${newClients.length} 客戶, ${newMemos.length} 備忘錄`);
+            alert("還原成功！"); window.location.reload();
         }
 
-        // --- UI Events ---
+        // --- UI ---
         document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
         document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
     </script>
