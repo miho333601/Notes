@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統管理後台 (備份/還原/重置)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 min-h-screen text-gray-100 p-6 md:p-10">
+
+    <div class="max-w-5xl mx-auto space-y-8">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-xl">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2"><i class="fas fa-cogs text-blue-500 mr-3"></i>系統管理控制台</h1>
+                <p class="text-gray-400 text-sm">請謹慎操作，此頁面擁有最高權限。</p>
+            </div>
+            <div id="loginSection">
+                <button onclick="login()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-bold transition shadow-lg flex items-center">
+                    <i class="fab fa-google mr-2"></i> 管理員登入
+                </button>
+            </div>
+            <div id="userInfo" class="hidden text-right">
+                <span class="text-green-400 font-bold" id="userEmail"></span>
+                <span class="block text-xs text-gray-500">已連線至資料庫</span>
+            </div>
+        </div>
+
+        <div id="actionSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                    <i class="fas fa-save text-9xl text-green-500"></i>
+                </div>
+                <h2 class="text-xl font-bold text-green-400 mb-4 flex items-center"><i class="fas fa-hdd mr-2"></i> 資料庫備份與還原</h2>
+                
+                <div class="mb-8 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                    <label class="block text-sm font-bold text-gray-300 mb-2">1. 備份資料 (Backup)</label>
+                    <p class="text-xs text-gray-500 mb-4">將所有客戶與備忘錄下載為 JSON 檔案，建議每週執行一次。</p>
+                    <button onclick="backupData()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded font-bold transition flex justify-center items-center">
+                        <i class="fas fa-download mr-2"></i> 下載完整備份檔
+                    </button>
+                </div>
+
+                <div class="p-4 bg-gray-900/50 rounded-lg border border-red-900/30">
+                    <label class="block text-sm font-bold text-red-300 mb-2">2. 災難還原 (Restore)</label>
+                    <p class="text-xs text-gray-500 mb-4">注意：此操作會 <b>先清空現有資料</b>，再匯入備份檔。</p>
+                    <input type="file" id="restoreFile" accept=".json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-white hover:file:bg-gray-600 mb-4"/>
+                    <button onclick="restoreData()" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded font-bold transition flex justify-center items-center">
+                        <i class="fas fa-upload mr-2"></i> 開始還原資料
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                    <i class="fas fa-list-ol text-9xl text-blue-500"></i>
+                </div>
+                <h2 class="text-xl font-bold text-blue-400 mb-4 flex items-center"><i class="fas fa-edit mr-2"></i> 快速建立新名單</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs text-gray-400 mb-2">輸入格式：<b>代號 名稱</b> (一行一筆)</p>
+                        <textarea id="rawInput" class="w-full h-64 bg-gray-900 text-white p-3 rounded border border-gray-600 font-mono text-xs focus:outline-none focus:border-blue-500" placeholder="S001 台積電&#10;S002 聯發科..."></textarea>
+                        <div class="text-right text-xs text-gray-500">預覽筆數：<span id="countPreview" class="text-white">0</span></div>
+                    </div>
+                    <button onclick="runResetImport()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded font-bold transition">
+                        <i class="fas fa-sync-alt mr-2"></i> 重置並匯入新名單
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="logSection" class="hidden bg-black p-4 rounded-xl border border-gray-700 shadow-inner">
+            <h3 class="text-gray-500 text-xs font-bold mb-2 uppercase tracking-wider">System Log</h3>
+            <div id="logArea" class="h-40 overflow-y-auto font-mono text-xs text-green-400 space-y-1"></div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, writeBatch, doc, getDocs, setDoc, query, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvo1Q_O9Mxp-N3bbUQlTppXxc_h5Ame-E",
+            authDomain: "notes-8be76.firebaseapp.com",
+            projectId: "notes-8be76",
+            storageBucket: "notes-8be76.firebasestorage.app",
+            messagingSenderId: "1036855189662",
+            appId: "1:1036855189662:web:4863ff65f63ab00a995b8f",
+            measurementId: "G-KMB6Q7VK8Z"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // --- 登入 ---
+        window.login = () => signInWithPopup(auth, provider).catch(alert);
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('userEmail').innerText = user.email;
+                document.getElementById('actionSection').classList.remove('hidden');
+            }
+        });
+
+        // --- 日誌工具 ---
+        const log = (msg, type = 'info') => {
+            const logSection = document.getElementById('logSection');
+            const logArea = document.getElementById('logArea');
+            logSection.classList.remove('hidden');
+            
+            const color = type === 'error' ? 'text-red-400' : (type === 'warn' ? 'text-yellow-400' : 'text-green-400');
+            const div = document.createElement('div');
+            div.className = color;
+            div.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+            logArea.appendChild(div);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // ================= 功能 1: 備份 (Backup) =================
+        window.backupData = async function() {
+            log("🚀 開始備份資料...");
+            try {
+                // 1. 讀取 Clients
+                log("讀取客戶資料中...");
+                const clientsSnap = await getDocs(collection(db, "clients"));
+                const clients = clientsSnap.docs.map(d => d.data());
+
+                // 2. 讀取 Memos
+                log("讀取備忘錄資料中...");
+                const memosSnap = await getDocs(collection(db, "memos"));
+                const memos = memosSnap.docs.map(d => {
+                    const data = d.data();
+                    // 將 Timestamp 轉換為字串，方便 JSON 儲存
+                    if (data.timestamp && data.timestamp.toDate) {
+                        data.timestampISO = data.timestamp.toDate().toISOString();
+                    }
+                    return data;
+                });
+
+                // 3. 打包
+                const backupPayload = {
+                    version: "1.0",
+                    exportedAt: new Date().toISOString(),
+                    totalClients: clients.length,
+                    totalMemos: memos.length,
+                    data: {
+                        clients: clients,
+                        memos: memos
+                    }
+                };
+
+                // 4. 下載檔案
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload));
+                const downloadAnchorNode = document.createElement('a');
+                const fileName = `backup_notes_${new Date().toISOString().slice(0,10)}.json`;
+                
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", fileName);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+
+                log(`✅ 備份完成！已下載 ${fileName} (客戶:${clients.length}, 備忘:${memos.length})`);
+
+            } catch (e) {
+                console.error(e);
+                log(`❌ 備份失敗: ${e.message}`, 'error');
+                alert("備份失敗，請檢查權限");
+            }
+        }
+
+        // ================= 功能 2: 還原 (Restore) =================
+        window.restoreData = async function() {
+            const fileInput = document.getElementById('restoreFile');
+            const file = fileInput.files[0];
+            if (!file) return alert("請先選擇備份檔 (.json)");
+
+            if (!confirm("⚠️ 嚴重警告 ⚠️\n\n這將會【清空當前所有資料庫】並還原成檔案內容。\n此操作無法復原！\n\n確定要繼續嗎？")) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (!json.data || !json.data.clients || !json.data.memos) {
+                        throw new Error("備份檔格式錯誤");
+                    }
+
+                    log("🚀 開始還原程序...");
+                    log(`備份檔日期: ${json.exportedAt}`);
+
+                    // 1. 清空舊資料
+                    log("正在清空舊資料庫...");
+                    await deleteCollection("clients");
+                    await deleteCollection("memos");
+                    
+                    // 2. 寫入 Clients
+                    log(`正在還原 ${json.data.clients.length} 筆客戶資料...`);
+                    await batchWrite("clients", json.data.clients, (item) => {
+                        // 客戶資料處理 (如果需要轉型)
+                        if (item.createdAt && typeof item.createdAt === 'string') {
+                            // 這裡可以處理舊資料的時間，目前簡單處理
+                        }
+                        return item;
+                    }, true); // Use ID from data (code)
+
+                    // 3. 寫入 Memos
+                    log(`正在還原 ${json.data.memos.length} 筆備忘錄...`);
+                    await batchWrite("memos", json.data.memos, (item) => {
+                        // 重要：將 ISO 時間字串轉回 Firestore Timestamp
+                        if (item.timestampISO) {
+                            item.timestamp = Timestamp.fromDate(new Date(item.timestampISO));
+                            delete item.timestampISO; // 移除暫存欄位
+                        }
+                        return item;
+                    }, false); // Auto ID
+
+                    log("🎉 還原成功！請回到主頁面重新整理。");
+                    alert("還原成功！");
+                    fileInput.value = ''; // 清空選擇
+
+                } catch (err) {
+                    console.error(err);
+                    log(`❌ 還原失敗: ${err.message}`, 'error');
+                    alert("還原失敗，請檢查檔案格式");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ================= 功能 3: 快速名單重置 (Reset & Import) =================
+        window.runResetImport = async function() {
+            const rawText = document.getElementById('rawInput').value.trim();
+            if (!rawText) return alert("請輸入資料");
+            if (!confirm("確定要清空舊資料並建立新名單嗎？")) return;
+
+            log("🚀 開始重置名單...");
+            
+            // 解析資料
+            const lines = rawText.split('\n');
+            const newClients = [];
+            lines.forEach(line => {
+                let parts = line.trim().split(/[\s,]+/); 
+                if (parts.length >= 2) newClients.push({ code: parts[0].trim(), name: parts[1].trim() });
+            });
+
+            // 清空與寫入
+            await deleteCollection("clients");
+            await deleteCollection("memos"); // 名單重置通常也意味著清空備忘錄，若不想清空備忘錄可註解此行
+            
+            await batchWrite("clients", newClients, (client) => ({
+                code: client.code,
+                name: client.name,
+                createdAt: serverTimestamp(),
+                latestMemoDate: new Date('2000-01-01')
+            }), true);
+
+            log("🎉 名單重置完成！");
+            alert("完成！");
+        }
+
+        // ================= 工具函式 (Batch Helpers) =================
+        
+        async function deleteCollection(collectionPath) {
+            const q = query(collection(db, collectionPath));
+            const snapshot = await getDocs(q);
+            const batchLimit = 400;
+            let batch = writeBatch(db);
+            let count = 0;
+            
+            for(const doc of snapshot.docs) {
+                batch.delete(doc.ref);
+                count++;
+                if (count >= batchLimit) { await batch.commit(); batch = writeBatch(db); count = 0; }
+            }
+            if (count > 0) await batch.commit();
+            log(`已清空集合: ${collectionPath}`);
+        }
+
+        async function batchWrite(collectionPath, items, transformFn, useCodeAsId = false) {
+            const batchLimit = 400;
+            let batch = writeBatch(db);
+            let count = 0;
+            let total = 0;
+
+            for (const item of items) {
+                const docData = transformFn ? transformFn(item) : item;
+                // 如果是 Clients，用 code 當 ID；如果是 Memos，讓 Firebase 自動產生 ID
+                const docRef = useCodeAsId ? doc(db, collectionPath, item.code) : doc(collection(db, collectionPath));
+                
+                batch.set(docRef, docData);
+                
+                count++;
+                if (count >= batchLimit) {
+                    await batch.commit();
+                    total += count;
+                    log(`寫入進度... ${total} 筆`);
+                    batch = writeBatch(db);
+                    count = 0;
+                }
+            }
+            if (count > 0) await batch.commit();
+        }
+
+        // 預覽計數
+        document.getElementById('rawInput').addEventListener('input', function() {
+            const lines = this.value.trim().split('\n').filter(line => line.trim() !== '');
+            document.getElementById('countPreview').innerText = lines.length;
+        });
+
+    </script>
+</body>
+</html>
