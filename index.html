@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>公司備忘錄系統 (旗艦版)</title>
+    <title>公司備忘錄系統 (護眼優化版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -24,9 +24,9 @@
 
     <input type="file" id="restoreInput" accept=".xlsx, .xls, .json" class="hidden" onchange="window.handleRestoreFile(this)">
 
-    <div id="quickPreviewTooltip" class="fixed hidden z-[100] bg-gray-900/95 text-white text-xs p-3 rounded-lg shadow-2xl max-w-xs border border-gray-700">
-        <div id="tooltipHeader" class="font-bold text-blue-300 mb-2 border-b border-gray-600 pb-1"></div>
-        <div id="tooltipContent" class="space-y-2"></div>
+    <div id="quickPreviewTooltip" class="fixed hidden z-[100] bg-gray-900/95 text-white text-sm p-4 rounded-lg shadow-2xl max-w-sm border border-gray-700 leading-relaxed">
+        <div id="tooltipHeader" class="font-bold text-blue-300 mb-2 border-b border-gray-600 pb-2 text-base"></div>
+        <div id="tooltipContent" class="space-y-3"></div>
     </div>
 
     <div id="loginScreen" class="fixed inset-0 z-[100] login-bg flex items-center justify-center">
@@ -273,7 +273,6 @@
         let editingMemoId = null;
         let editingClientCode = null;
 
-        // --- [新增] 日誌寫入函式 ---
         async function logAction(action, details) {
             try {
                 await addDoc(collection(db, "logs"), {
@@ -285,7 +284,6 @@
             } catch (e) { console.error("Log error", e); }
         }
 
-        // --- 登入邏輯 ---
         onAuthStateChanged(auth, async (user) => {
             const loginScreen = document.getElementById('loginScreen');
             const mainApp = document.getElementById('mainApp');
@@ -400,12 +398,15 @@
             if(status === 'pending') { titleText = "未完成事項"; colorClass = "text-orange-300"; }
             else if(status === 'processing') { titleText = "處理中事項"; colorClass = "text-blue-300"; }
             else { titleText = "已完成事項"; colorClass = "text-green-300"; }
-            header.className = `font-bold mb-2 border-b border-gray-600 pb-1 ${colorClass}`;
+            header.className = `font-bold mb-2 border-b border-gray-600 pb-2 text-base ${colorClass}`;
             header.innerText = `${titleText} (${targetMemos.length})`;
+            
+            // [修改] 預覽內容的字體也改為 text-xs (之前是 text-[10px])
             content.innerHTML = targetMemos.slice(0, 5).map(m => {
                 let dateStr = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleDateString() : '';
-                return `<div class="flex gap-2 items-start"><span class="text-gray-500 whitespace-nowrap font-mono text-[10px] mt-0.5">${dateStr}</span><span class="line-clamp-2">${m.content}</span></div>`;
+                return `<div class="flex gap-2 items-start"><span class="text-gray-500 whitespace-nowrap font-mono text-xs mt-0.5">${dateStr}</span><span class="line-clamp-2">${m.content}</span></div>`;
             }).join('');
+            
             if(targetMemos.length > 5) content.innerHTML += `<div class="text-center text-gray-500 italic mt-1">...還有 ${targetMemos.length - 5} 筆</div>`;
             tooltip.classList.remove('hidden');
             const x = event.clientX + 15; const y = event.clientY + 15;
@@ -491,11 +492,9 @@
             try {
                 if(editingMemoId) {
                     await updateDoc(doc(db, "memos", editingMemoId), { content, status, feedback });
-                    // [日誌]
                     await logAction("更新備忘錄", `客戶:${clientCode}, 狀態:${status}`);
                 } else {
                     await addDoc(collection(db, "memos"), { clientCode, content, status, feedback, timestamp: serverTimestamp() });
-                    // [日誌]
                     await logAction("新增備忘錄", `客戶:${clientCode}`);
                 }
                 window.closeModal('memoModal');
@@ -567,7 +566,6 @@
             clientsData.forEach(c => { const opt = document.createElement('option'); opt.value=c.code; opt.text=`${c.code} - ${c.name}`; select.appendChild(opt); });
         }
 
-        // --- Log Viewer ---
         window.openLogModal = async function() {
             if(currentUserRole !== 'admin') return alert('權限不足');
             document.getElementById('logModal').classList.remove('opacity-0', 'pointer-events-none');
@@ -588,7 +586,6 @@
             } catch(e) { console.error(e); tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">載入失敗</td></tr>'; }
         }
 
-        // --- Backup / Restore / Employee (省略重複代碼，邏輯同前一版) ---
         window.openEmployeeModal = async function() {
             if (currentUserRole !== 'admin') { alert("權限不足"); return; }
             document.getElementById('employeeModal').classList.remove('opacity-0', 'pointer-events-none');
@@ -687,7 +684,6 @@
             alert("還原成功！"); window.location.reload();
         }
 
-        // --- UI ---
         document.getElementById('searchInput').addEventListener('keyup', window.renderDashboard);
         document.getElementById('sortSelect').addEventListener('change', window.renderDashboard);
     </script>
